@@ -23,7 +23,7 @@ import static org.mockito.Mockito.never;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @InjectMocks 
+    @InjectMocks
     private UserService userService;
 
     @Mock
