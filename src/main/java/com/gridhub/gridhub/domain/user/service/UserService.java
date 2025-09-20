@@ -1,6 +1,5 @@
 package com.gridhub.gridhub.domain.user.service;
 
-
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
@@ -27,7 +26,6 @@ public class UserService {
 
         // 2. 닉네임 중복 확인
         if (userRepository.existsByNickname(request.nickname())) {
-
             throw new NicknameAlreadyExistsException();
         }
 
