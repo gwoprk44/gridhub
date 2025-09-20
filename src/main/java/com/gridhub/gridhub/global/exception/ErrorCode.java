@@ -15,7 +15,8 @@ public enum ErrorCode {
 
     // User
     EMAIL_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "U001", "이미 사용 중인 이메일입니다."),
-    NICKNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "U002", "이미 사용 중인 닉네임입니다.");
+    NICKNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "U002", "이미 사용 중인 닉네임입니다."),
+    INVALID_NICKNAME_FORMAT(HttpStatus.BAD_REQUEST, "U003", "닉네임은 2~10자의 영문, 숫자, 한글만 사용 가능합니다.");
     // TODO: 앞으로 필요한 에러 코드를 여기에 추가
 
     private final HttpStatus status;

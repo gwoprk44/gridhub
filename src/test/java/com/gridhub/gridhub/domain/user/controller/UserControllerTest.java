@@ -101,4 +101,24 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."))
                 .andDo(print());
     }
+
+    @DisplayName("회원가입 실패 - 잘못된 입력값 (닉네임 형식 오류)")
+    @Test
+    void signUp_Fail_InvalidNicknameFormat() throws Exception {
+        // given
+        // 닉네임에 특수문자 포함
+        SignUpRequest request = new SignUpRequest("test@test.com", "Password123!", "testuser!");
+
+        // when
+        ResultActions actions = mockMvc.perform(post("/api/auth/signup")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+
+        // then
+        actions
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("C001"))
+                .andExpect(jsonPath("$.message").value("닉네임은 2~10자의 영문, 숫자, 한글만 사용 가능합니다."))
+                .andDo(print());
+    }
 }

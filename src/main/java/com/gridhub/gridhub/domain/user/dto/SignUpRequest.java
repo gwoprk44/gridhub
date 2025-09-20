@@ -9,7 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 public record SignUpRequest(
         @NotBlank(message = "이메일은 필수 입력 값입니다.")
-        @Email(message = "이메일 형식에 맞지 않습니다.")
+        @Pattern(regexp = "^[a-zA-Z0-9_!#$%&'*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+$", message = "유효하지 않은 이메일 형식입니다.")
         String email,
 
         @NotBlank(message = "비밀번호는 필수 입력 값입니다.")
@@ -18,6 +18,8 @@ public record SignUpRequest(
         String password,
 
         @NotBlank(message = "닉네임은 필수 입력 값입니다.")
+        // 2~10자의 영문 대소문자, 숫자, 한글만 허용
+        @Pattern(regexp = "^[a-zA-Z0-9가-힣]{2,10}$", message = "닉네임은 2~10자의 영문, 숫자, 한글만 사용 가능합니다.")
         String nickname
 ) {
     //DTO를 엔티티로 변환하는 메서드

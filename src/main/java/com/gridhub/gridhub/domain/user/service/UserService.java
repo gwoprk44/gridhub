@@ -1,3 +1,4 @@
+// src/main/java/com/gridhub/gridhub/domain/user/service/UserService.java
 package com.gridhub.gridhub.domain.user.service;
 
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
@@ -19,20 +20,27 @@ public class UserService {
 
     @Transactional
     public void signUp(SignUpRequest request) {
-        // 1. 이메일 중복 확인
-        if (userRepository.existsByEmail(request.email())) {
-            throw new EmailAlreadyExistsException();
-        }
+        // 1. 중복 검사
+        validateDuplicateCredentials(request.email(), request.nickname());
 
-        // 2. 닉네임 중복 확인
-        if (userRepository.existsByNickname(request.nickname())) {
-            throw new NicknameAlreadyExistsException();
-        }
-
-        // 3. DTO를 Entity로 변환 (비밀번호 암호화 포함)
+        // 2. DTO를 Entity로 변환 (비밀번호 암호화 포함)
         User newUser = request.toEntity(passwordEncoder);
 
-        // 4. DB에 저장
+        // 3. DB에 저장
         userRepository.save(newUser);
+    }
+
+    /**
+     * 이메일과 닉네임의 중복을 검사하는 private 메서드
+     * @param email 검사할 이메일
+     * @param nickname 검사할 닉네임
+     */
+    private void validateDuplicateCredentials(String email, String nickname) {
+        if (userRepository.existsByEmail(email)) {
+            throw new EmailAlreadyExistsException();
+        }
+        if (userRepository.existsByNickname(nickname)) {
+            throw new NicknameAlreadyExistsException();
+        }
     }
 }
