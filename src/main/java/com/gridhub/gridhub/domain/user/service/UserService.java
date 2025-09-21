@@ -1,11 +1,15 @@
 // src/main/java/com/gridhub/gridhub/domain/user/service/UserService.java
 package com.gridhub.gridhub.domain.user.service;
 
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.InvalidPasswordException;
 import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     @Transactional
     public void signUp(SignUpRequest request) {
@@ -42,5 +47,23 @@ public class UserService {
         if (userRepository.existsByNickname(nickname)) {
             throw new NicknameAlreadyExistsException();
         }
+    }
+    
+    /*
+    * 로그인 메서드
+    * */
+    @Transactional(readOnly = true)
+    public String login(LoginRequest request) {
+        // 1. 사용자 확인
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 비밀번호 확인
+        if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new InvalidPasswordException();
+        }
+
+        // 3. JWT 토큰 생성 및 반환
+        return jwtUtil.createToken(user.getEmail(), user.getRole());
     }
 }
