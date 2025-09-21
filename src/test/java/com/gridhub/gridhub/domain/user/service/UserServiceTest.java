@@ -5,6 +5,7 @@ import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
 import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,9 @@ class UserServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtUtil jwtUtil;
 
     @DisplayName("회원가입 성공")
     @Test
@@ -90,4 +94,6 @@ class UserServiceTest {
         // userRepository.save가 호출되지 않았는지 검증
         then(userRepository).should(never()).save(any(User.class));
     }
+
+
 }
