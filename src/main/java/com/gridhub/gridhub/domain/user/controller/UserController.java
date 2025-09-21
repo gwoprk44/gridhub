@@ -1,6 +1,8 @@
 package com.gridhub.gridhub.domain.user.controller;
 
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
+import com.gridhub.gridhub.domain.user.dto.TokenDto;
 import com.gridhub.gridhub.domain.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,5 +24,11 @@ public class UserController {
     public ResponseEntity<Void> signUp(@Valid @RequestBody SignUpRequest request) {
         userService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<TokenDto> login(@Valid @RequestBody LoginRequest request) {
+        String token = userService.login(request);
+        return ResponseEntity.ok(new TokenDto(token));
     }
 }
