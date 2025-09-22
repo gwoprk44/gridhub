@@ -1,9 +1,13 @@
 package com.gridhub.gridhub.domain.user.service;
 
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.InvalidPasswordException;
 import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.global.util.JwtUtil;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
+
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -95,5 +102,82 @@ class UserServiceTest {
         then(userRepository).should(never()).save(any(User.class));
     }
 
+    @DisplayName("로그인 성공")
+    @Test
+    void login_Success() {
+        // given
+        String rawPassword = "password123!";
+        String encodedPassword = "encodedPassword";
+        LoginRequest request = new LoginRequest("test@test.com", rawPassword);
+        User user = User.builder()
+                .email(request.email())
+                .password(encodedPassword)
+                .nickname("testuser")
+                .role(UserRole.USER)
+                .build();
 
+        String expectedToken = "Bearer test-token";
+
+        // userRepository.findByEmail이 호출되면 user 객체를 담은 Optional을 반환
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        // passwordEncoder.matches가 호출되면 true를 반환 (비밀번호 일치)
+        given(passwordEncoder.matches(rawPassword, encodedPassword)).willReturn(true);
+        // jwtUtil.createToken이 호출되면 expectedToken을 반환
+        given(jwtUtil.createToken(user.getEmail(), user.getRole())).willReturn(expectedToken);
+
+        // when
+        String actualToken = userService.login(request);
+
+        // then
+        assertThat(actualToken).isEqualTo(expectedToken);
+        then(userRepository).should().findByEmail(request.email());
+        then(passwordEncoder).should().matches(rawPassword, encodedPassword);
+        then(jwtUtil).should().createToken(user.getEmail(), user.getRole());
+    }
+
+    @DisplayName("로그인 실패 - 존재하지 않는 이메일")
+    @Test
+    void login_Fail_UserNotFound() {
+        // given
+        LoginRequest request = new LoginRequest("nonexistent@test.com", "password123!");
+
+        // userRepository.findByEmail이 호출되면 빈 Optional을 반환
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.empty());
+
+        // when & then
+        assertThrows(UserNotFoundException.class, () -> {
+            userService.login(request);
+        });
+
+        // 비밀번호 검증이나 토큰 생성 로직은 호출되지 않아야 함
+        then(passwordEncoder).should(never()).matches(anyString(), anyString());
+        then(jwtUtil).should(never()).createToken(anyString(), any(UserRole.class));
+    }
+
+    @DisplayName("로그인 실패 - 비밀번호 불일치")
+    @Test
+    void login_Fail_InvalidPassword() {
+        // given
+        String rawPassword = "wrongPassword123!";
+        String encodedPassword = "encodedPassword";
+        LoginRequest request = new LoginRequest("test@test.com", rawPassword);
+        User user = User.builder()
+                .email(request.email())
+                .password(encodedPassword)
+                .nickname("testuser")
+                .role(UserRole.USER)
+                .build();
+
+        given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
+        // passwordEncoder.matches가 호출되면 false를 반환 (비밀번호 불일치)
+        given(passwordEncoder.matches(rawPassword, encodedPassword)).willReturn(false);
+
+        // when & then
+        assertThrows(InvalidPasswordException.class, () -> {
+            userService.login(request);
+        });
+
+        // 토큰 생성 로직은 호출되지 않아야 함
+        then(jwtUtil).should(never()).createToken(anyString(), any(UserRole.class));
+    }
 }
