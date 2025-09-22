@@ -6,6 +6,7 @@ import com.gridhub.gridhub.global.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -37,16 +38,23 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 // CSRF(Cross-Site Request Forgery) 보호 비활성화
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf.disable())
 
-                // 세션 관리 정책을 STATELESS로 설정 (
+                // 세션 관리 정책을 STATELESS로 설정
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // HTTP 요청에 대한 인가 규칙 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 다음 경로들은 인증 없이 접근 허용
+                        // 1. 인증 없이 접근 허용할 공통 경로
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // 그 외 모든 요청은 인증 필요
+
+                        // 2. 비로그인 사용자도 조회(GET)는 가능하도록 허용할 경로
+                        .requestMatchers(HttpMethod.GET, "/api/posts/**", "/api/comments/**").permitAll()
+
+                        // 3. 관리자(ADMIN) 역할만 접근 가능한 경로
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // 4. 위에서 설정한 경로 외의 모든 요청은 인증된 사용자만 접근 가능
                         .anyRequest().authenticated()
                 )
 
