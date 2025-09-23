@@ -9,6 +9,7 @@ import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
 import com.gridhub.gridhub.domain.post.exception.PostUpdateForbiddenException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -88,5 +89,38 @@ public class PostService {
 
         // 4. 게시글 수정
         post.update(request.title(), request.content());
+    }
+
+    /*
+    * 게시글 삭제
+    * */
+    @Transactional
+    public void deletePost(Long postId, String userEmail) {
+        // 1. 현재 요청을 보낸 사용자 정보 조회
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 삭제할 게시글 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 3. 권한 검사
+        validatePostAuthorOrAdmin(post, currentUser);
+
+        // 4. 게시글 삭제
+        postRepository.delete(post);
+    }
+
+    /**
+     * 게시글에 대한 권한을 검사하는 private 메서드 (작성자 또는 관리자)
+     * @param post 검사 대상 게시글
+     * @param user 현재 사용자
+     */
+    private void validatePostAuthorOrAdmin(Post post, User user) {
+        // 현재 사용자가 관리자 역할이 아니고 게시글 작성자도 아닐경우 예외 날림
+        if (!user.getRole().equals(UserRole.ADMIN) &&
+        !post.getAuthor().getId().equals(user.getId())) {
+            throw new PostUpdateForbiddenException();
+        }
     }
 }
