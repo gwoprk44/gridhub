@@ -2,9 +2,11 @@ package com.gridhub.gridhub.domain.comment.service;
 
 import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;
 import com.gridhub.gridhub.domain.comment.dto.CommentResponse;
+import com.gridhub.gridhub.domain.comment.dto.CommentUpdateRequest;
 import com.gridhub.gridhub.domain.comment.entity.Comment;
 import com.gridhub.gridhub.domain.comment.exception.CommentDeleteForbiddenException;
 import com.gridhub.gridhub.domain.comment.exception.CommentNotFoundException;
+import com.gridhub.gridhub.domain.comment.exception.CommentUpdateForbiddenException;
 import com.gridhub.gridhub.domain.comment.repository.CommentRepository;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
@@ -82,5 +84,22 @@ public class CommentService {
             Comment parent = comment.getParent();
             commentRepository.delete(comment); // 일단 현재 댓글은 삭제
         }
+    }
+
+    @Transactional
+    public void updateComment(Long commentId, CommentUpdateRequest request, String userEmail) {
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(UserNotFoundException::new);
+
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(CommentNotFoundException::new);
+
+        // 권한 검사
+        if (!comment.getAuthor().getId().equals(currentUser.getId())) {
+            throw new CommentUpdateForbiddenException();
+        }
+
+        // 댓글 내용 수정 (Dirty Checking 활용)
+        comment.update(request.content());
     }
 }
