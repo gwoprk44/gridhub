@@ -3,8 +3,10 @@ package com.gridhub.gridhub.domain.post.service;
 import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
 import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
+import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
+import com.gridhub.gridhub.domain.post.exception.PostUpdateForbiddenException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
@@ -64,5 +66,27 @@ public class PostService {
 
         // 2. page<post>를 dto로 변환
         return posts.map(PostSimpleResponse::from);
+    }
+
+    /*
+    * 게시글 수정
+    * */
+    @Transactional
+    public void updatePost(Long postId, PostUpdateRequest request, String userEmail) {
+        // 1. 현재 요청을 보낸 사용자 정보 조회
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(UserNotFoundException::new);
+
+        // 2. 수정할 게시글 조회
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 3. 권한 검사
+        if (!post.getAuthor().getId().equals(currentUser.getId())) {
+            throw new PostUpdateForbiddenException();
+        }
+
+        // 4. 게시글 수정
+        post.update(request.title(), request.content());
     }
 }
