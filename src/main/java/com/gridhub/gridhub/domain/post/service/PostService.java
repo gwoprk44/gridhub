@@ -1,7 +1,9 @@
 package com.gridhub.gridhub.domain.post.service;
 
 import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
+import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
@@ -31,5 +33,15 @@ public class PostService {
 
         // 4. 저장된 게시글의 ID 반환
         return savedPost.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public PostResponse getPost(Long postId) {
+        // 1. postId로 게시글 조회. 존재하지 않으면 PostNotFoundException 발생
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 2. 조회된 엔티티 dto로 변환하여 반환
+        return PostResponse.from(post);
     }
 }
