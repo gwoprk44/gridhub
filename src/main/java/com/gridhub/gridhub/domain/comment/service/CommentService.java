@@ -37,15 +37,15 @@ public class CommentService {
 
         Comment parentComment = null;
         if (request.parentCommentId() != null) {
-            // TODO: parentCommentId로 댓글 조회 및 예외 처리
-            parentComment = commentRepository.findById(request.parentCommentId()).orElse(null);
+            parentComment = commentRepository.findById(request.parentCommentId())
+                    .orElseThrow(CommentNotFoundException::new);
         }
 
         Comment comment = Comment.builder()
                 .content(request.content())
                 .author(author)
                 .post(post)
-                .parent(parentComment)
+                .parent(parentComment) // 빌더가 내부적으로 연관관계 편의 메서드를 호출
                 .build();
 
         commentRepository.save(comment);
@@ -54,52 +54,41 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentResponse> getComments(Long postId) {
         Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
-
-        return commentRepository.findByPostAndParentIsNullOrderByCreatedAtAsc(post)
+        return commentRepository.findByPostWithChildren(post)
                 .stream()
                 .map(CommentResponse::from)
                 .collect(Collectors.toList());
     }
 
     @Transactional
-    public void deleteComment(Long commentId, String userEmail) {
-        User currentUser = userRepository.findByEmail(userEmail)
-                .orElseThrow(UserNotFoundException::new);
-
-        Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(CommentNotFoundException::new);
-
-        // 권한 검사 (작성자 또는 관리자)
-        if (!comment.getAuthor().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(UserRole.ADMIN)) {
-            throw new CommentDeleteForbiddenException();
-        }
-
-        // 자식 댓글이 있는지 확인
-        if (!comment.getChildren().isEmpty()) {
-            // 자식이 있으면 소프트 삭제
-            comment.softDelete();
-        } else {
-            // 자식이 없으면 하드 삭제
-            // 부모 댓글이 null이 아니면서, 소프트 삭제 상태이고, 이제 자식이 없다면 부모도 함께 삭제 가능
-            Comment parent = comment.getParent();
-            commentRepository.delete(comment); // 일단 현재 댓글은 삭제
-        }
-    }
-
-    @Transactional
     public void updateComment(Long commentId, CommentUpdateRequest request, String userEmail) {
         User currentUser = userRepository.findByEmail(userEmail)
                 .orElseThrow(UserNotFoundException::new);
-
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(CommentNotFoundException::new);
 
-        // 권한 검사
         if (!comment.getAuthor().getId().equals(currentUser.getId())) {
             throw new CommentUpdateForbiddenException();
         }
 
-        // 댓글 내용 수정 (Dirty Checking 활용)
         comment.update(request.content());
+    }
+
+    @Transactional
+    public void deleteComment(Long commentId, String userEmail) {
+        User currentUser = userRepository.findByEmail(userEmail)
+                .orElseThrow(UserNotFoundException::new);
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(CommentNotFoundException::new);
+
+        if (!comment.getAuthor().getId().equals(currentUser.getId()) && !currentUser.getRole().equals(UserRole.ADMIN)) {
+            throw new CommentDeleteForbiddenException();
+        }
+
+        if (!comment.getChildren().isEmpty()) {
+            comment.softDelete();
+        } else {
+            commentRepository.delete(comment);
+        }
     }
 }

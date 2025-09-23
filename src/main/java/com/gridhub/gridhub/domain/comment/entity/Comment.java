@@ -27,6 +27,9 @@ public class Comment extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @Column(nullable = false)
+    private boolean isDeleted = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User author;
@@ -35,34 +38,35 @@ public class Comment extends BaseTimeEntity {
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
-    // === 대댓글을 위한 Self-Join ===
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_comment_id")
-    private Comment parent; // 부모 댓글
+    private Comment parent;
 
-    // === 소프트 삭제를 위한 필드 추가 ===
-    @Column(nullable = false)
-    private boolean isDeleted = false;
-
-    @BatchSize(size = 100) // N+1 문제 해결을 위한 BatchSize 설정
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> children = new ArrayList<>(); // 자식 댓글들
+    private List<Comment> children = new ArrayList<>();
 
     @Builder
     public Comment(String content, User author, Post post, Comment parent) {
         this.content = content;
         this.author = author;
         this.post = post;
+        if (parent != null) {
+            this.setParent(parent);
+        }
+    }
+
+    // === 연관관계 편의 메서드 ===
+    public void setParent(Comment parent) {
         this.parent = parent;
+        parent.getChildren().add(this);
     }
 
-    // === 소프트 삭제를 위한 메서드 추가 ===
-    public void softDelete() {
-        this.isDeleted = true;
-    }
-
-    // === 수정 메서드 추가
     public void update(String content) {
         this.content = content;
+    }
+
+    public void softDelete() {
+        this.isDeleted = true;
     }
 }
