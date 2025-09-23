@@ -35,4 +35,14 @@ public class CommentController {
         List<CommentResponse> comments = commentService.getComments(postId);
         return ResponseEntity.ok(comments);
     }
+
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Long postId, // postId는 경로 일관성을 위해 받지만, 실제 로직에선 사용 안 함
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        commentService.deleteComment(commentId, userDetails.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }

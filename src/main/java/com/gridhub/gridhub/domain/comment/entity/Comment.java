@@ -40,6 +40,10 @@ public class Comment extends BaseTimeEntity {
     @JoinColumn(name = "parent_comment_id")
     private Comment parent; // 부모 댓글
 
+    // === 소프트 삭제를 위한 필드 추가 ===
+    @Column(nullable = false)
+    private boolean isDeleted = false;
+
     @BatchSize(size = 100) // N+1 문제 해결을 위한 BatchSize 설정
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> children = new ArrayList<>(); // 자식 댓글들
@@ -50,5 +54,10 @@ public class Comment extends BaseTimeEntity {
         this.author = author;
         this.post = post;
         this.parent = parent;
+    }
+
+    // === 소프트 삭제를 위한 메서드 추가 ===
+    public void softDelete() {
+        this.isDeleted = true;
     }
 }
