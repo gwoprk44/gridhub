@@ -2,7 +2,6 @@ package com.gridhub.gridhub.domain.user.dto;
 
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.security.crypto.password.PasswordEncoder;
