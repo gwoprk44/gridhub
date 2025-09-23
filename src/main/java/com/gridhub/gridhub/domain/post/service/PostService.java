@@ -5,6 +5,7 @@ import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.exception.PostDeleteForbiddenException;
 import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
 import com.gridhub.gridhub.domain.post.exception.PostUpdateForbiddenException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
@@ -120,7 +121,7 @@ public class PostService {
         // 현재 사용자가 관리자 역할이 아니고 게시글 작성자도 아닐경우 예외 날림
         if (!user.getRole().equals(UserRole.ADMIN) &&
         !post.getAuthor().getId().equals(user.getId())) {
-            throw new PostUpdateForbiddenException();
+            throw new PostDeleteForbiddenException();
         }
     }
 }
