@@ -2,6 +2,7 @@ package com.gridhub.gridhub.domain.comment.controller;
 
 import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;
 import com.gridhub.gridhub.domain.comment.dto.CommentResponse;
+import com.gridhub.gridhub.domain.comment.dto.CommentUpdateRequest;
 import com.gridhub.gridhub.domain.comment.service.CommentService;
 import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -44,5 +45,16 @@ public class CommentController {
     ) {
         commentService.deleteComment(commentId, userDetails.getUsername());
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{commentId}")
+    public ResponseEntity<Void> updateComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @Valid @RequestBody CommentUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        commentService.updateComment(commentId, request, userDetails.getUsername());
+        return ResponseEntity.ok().build();
     }
 }
