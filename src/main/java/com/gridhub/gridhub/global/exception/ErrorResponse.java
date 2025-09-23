@@ -1,4 +1,4 @@
-package com.gridhub.f1.global.exception;
+package com.gridhub.gridhub.global.exception;
 
 public record ErrorResponse(
         String code,

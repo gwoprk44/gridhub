@@ -1,9 +1,9 @@
-package com.gridhub.f1.domain.user.controller;
+package com.gridhub.gridhub.domain.user.controller;
 
-import com.gridhub.f1.domain.user.dto.LoginRequest;
-import com.gridhub.f1.domain.user.dto.SignUpRequest;
-import com.gridhub.f1.domain.user.dto.TokenDto;
-import com.gridhub.f1.domain.user.service.UserService;
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
+import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
+import com.gridhub.gridhub.domain.user.dto.TokenDto;
+import com.gridhub.gridhub.domain.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

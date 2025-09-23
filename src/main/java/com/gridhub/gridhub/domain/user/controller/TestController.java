@@ -1,6 +1,6 @@
-package com.gridhub.f1.domain.user.controller;
+package com.gridhub.gridhub.domain.user.controller;
 
-import com.gridhub.f1.global.security.UserDetailsImpl;
+import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

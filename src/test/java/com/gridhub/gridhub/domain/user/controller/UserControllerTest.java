@@ -1,10 +1,10 @@
-package com.gridhub.f1.domain.user.controller;
+package com.gridhub.gridhub.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gridhub.f1.domain.user.dto.SignUpRequest;
-import com.gridhub.f1.domain.user.exception.EmailAlreadyExistsException;
-import com.gridhub.f1.domain.user.service.UserService;
-import com.gridhub.f1.global.exception.GlobalExceptionHandler;
+import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
+import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.service.UserService;
+import com.gridhub.gridhub.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

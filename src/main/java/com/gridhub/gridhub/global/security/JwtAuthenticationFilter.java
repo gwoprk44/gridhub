@@ -1,6 +1,6 @@
-package com.gridhub.f1.global.security;
+package com.gridhub.gridhub.global.security;
 
-import com.gridhub.f1.global.util.JwtUtil;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
