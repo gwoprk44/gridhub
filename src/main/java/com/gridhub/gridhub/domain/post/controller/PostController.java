@@ -1,9 +1,6 @@
 package com.gridhub.gridhub.domain.post.controller;
 
-import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
-import com.gridhub.gridhub.domain.post.dto.PostIdResponse;
-import com.gridhub.gridhub.domain.post.dto.PostResponse;
-import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
+import com.gridhub.gridhub.domain.post.dto.*;
 import com.gridhub.gridhub.domain.post.service.PostService;
 import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -52,5 +49,17 @@ public class PostController {
     ) {
         Page<PostSimpleResponse> postList = postService.getPostList(pageable);
         return ResponseEntity.ok(postList);
+    }
+
+    @PutMapping("/{postId}")
+    public ResponseEntity<Void> updatePost(
+            @PathVariable Long postId,
+            @Valid @RequestBody PostUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        String currentUserEmail = userDetails.getUsername();
+        postService.updatePost(postId, request, currentUserEmail);
+
+        return ResponseEntity.ok().build(); // 성공시 200 OK와 빈 BODY 응답.
     }
 }
