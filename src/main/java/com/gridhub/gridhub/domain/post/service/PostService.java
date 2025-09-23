@@ -2,6 +2,7 @@ package com.gridhub.gridhub.domain.post.service;
 
 import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
 import com.gridhub.gridhub.domain.post.dto.PostResponse;
+import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
@@ -9,6 +10,8 @@ import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +22,9 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository; // 작성자 정보 호출용
 
+    /*
+    * 게시글 생성
+    * */
     @Transactional
     public Long createPost(PostCreateRequest request, String userEmail) {
         // 1. 요청된 이메일로 사용자 정보 조회
@@ -35,6 +41,11 @@ public class PostService {
         return savedPost.getId();
     }
 
+    /*
+    * 게시글 조회
+    * */
+
+    // 게시글 단건 조회
     @Transactional(readOnly = true)
     public PostResponse getPost(Long postId) {
         // 1. postId로 게시글 조회. 존재하지 않으면 PostNotFoundException 발생
@@ -43,5 +54,15 @@ public class PostService {
 
         // 2. 조회된 엔티티 dto로 변환하여 반환
         return PostResponse.from(post);
+    }
+
+    // 게시글 목록 조회
+    @Transactional(readOnly = true)
+    public Page<PostSimpleResponse> getPostList(Pageable pageable) {
+        // 1. 페이징된 post 엔티티 목록 조회
+        Page<Post> posts = postRepository.findAll(pageable);
+
+        // 2. page<post>를 dto로 변환
+        return posts.map(PostSimpleResponse::from);
     }
 }
