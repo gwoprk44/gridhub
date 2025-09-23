@@ -1,7 +1,6 @@
 package com.gridhub.gridhub.domain.post.entity;
 
 import com.gridhub.gridhub.domain.BaseTimeEntity;
-import com.gridhub.gridhub.domain.post.dto.PostCategory;
 import com.gridhub.gridhub.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -28,12 +27,11 @@ public class Post extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private com.gridhub.gridhub.domain.post.dto.PostCategory category;
+    private PostCategory category;
 
     @Column(nullable = false)
     private int viewCount = 0;
 
-    // Post가 연관관계의 주인
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User author; // 작성자
