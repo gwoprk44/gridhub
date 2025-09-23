@@ -1,3 +1,4 @@
+// src/main/java/com/gridhub/gridhub/domain/comment/entity/Comment.java
 package com.gridhub.gridhub.domain.comment.entity;
 
 import com.gridhub.gridhub.domain.BaseTimeEntity;
@@ -7,15 +8,16 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "comment")
 @Getter
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "comments")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Comment extends BaseTimeEntity {
 
     @Id
@@ -23,60 +25,31 @@ public class Comment extends BaseTimeEntity {
     @Column(name = "comment_id")
     private Long id;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(nullable = false)
-    private boolean isDeleted = false; // 삭제 여부 플래그 (기본값 : false)
-
-    /*
-    * 연관관계
-    * */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id") // 삭제된 댓글의 경우 writer가 null이 될 수 있으므로 nullable = true (혹은 더미 유저)
-    private User writer;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User author;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
-    /*
-    * 대댓글을 위한 자기참조
-    * */
+    // === 대댓글을 위한 Self-Join ===
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
+    @JoinColumn(name = "parent_comment_id")
     private Comment parent; // 부모 댓글
 
-    @OneToMany(mappedBy = "parent")
+    @BatchSize(size = 100) // N+1 문제 해결을 위한 BatchSize 설정
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> children = new ArrayList<>(); // 자식 댓글들
 
-    /*
-    * 생성자
-    * */
     @Builder
-    public Comment(String content, User writer, Post post, Comment parent) {
+    public Comment(String content, User author, Post post, Comment parent) {
         this.content = content;
-        this.writer = writer;
+        this.author = author;
         this.post = post;
         this.parent = parent;
-        this.isDeleted = false;
-    }
-
-    //===비즈니스 로직===//
-
-    /*
-    * 댓글 내용 수정
-    * */
-    public void updateContent(String newContent) {
-        this.content = newContent;
-    }
-
-    /*
-    * 댓글 삭제 처리
-    * */
-    public void markAsDeleted() {
-        this.isDeleted = true;
-        this.content = "삭제된 댓글입니다.";
-        this.writer = null; // 작성자 정보 제거
     }
 }

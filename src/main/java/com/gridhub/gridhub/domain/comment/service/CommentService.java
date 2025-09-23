@@ -1,57 +1,59 @@
+// src/main/java/com/gridhub/gridhub/domain/comment/service/CommentService.java
 package com.gridhub.gridhub.domain.comment.service;
 
 import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;
+import com.gridhub.gridhub.domain.comment.dto.CommentResponse;
 import com.gridhub.gridhub.domain.comment.entity.Comment;
-import com.gridhub.gridhub.domain.comment.exception.CommentNotFoundException;
-import com.gridhub.gridhub.domain.comment.exception.InvalidParentComment;
 import com.gridhub.gridhub.domain.comment.repository.CommentRepository;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class CommentService {
+
     private final CommentRepository commentRepository;
+    private final UserRepository userRepository;
     private final PostRepository postRepository;
 
-    /**
-     * 댓글 생성
-     * @param postId 댓글을 작성할 게시글 ID
-     * @param request 댓글 생성 요청 DTO
-     * @param user 현재 인증된 사용자
-     */
-    public void createComment(Long postId, CommentCreateRequest request, User user) {
-        // 1. 게시글 조회 및 예외 처리
-        Post post = postRepository.findById(postId)
-                .orElseThrow(PostNotFoundException::new);
+    @Transactional
+    public void createComment(Long postId, CommentCreateRequest request, String userEmail) {
+        User author = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+        Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
 
-        // 2. 부모 댓글 조회 (대댓글인 경우)
         Comment parentComment = null;
-        if (request.parentId() != null) {
-            parentComment = commentRepository.findById(request.parentId())
-                    .orElseThrow(CommentNotFoundException::new);
-            // 대댓글을 다는 게시글과 부모 댓글의 게시글이 일치하는지 확인
-            if (!parentComment.getPost().getId().equals(postId)) {
-                throw new InvalidParentComment();
-            }
+        if (request.parentCommentId() != null) {
+            // TODO: parentCommentId로 댓글 조회 및 예외 처리
+            parentComment = commentRepository.findById(request.parentCommentId()).orElse(null);
         }
 
-        // 3. Comment 엔티티 생성
-        Comment newComment = Comment.builder()
+        Comment comment = Comment.builder()
                 .content(request.content())
-                .writer(user)
+                .author(author)
                 .post(post)
                 .parent(parentComment)
                 .build();
 
-        // 4. DB에 저장
-        commentRepository.save(newComment);
+        commentRepository.save(comment);
+    }
 
+    @Transactional(readOnly = true)
+    public List<CommentResponse> getComments(Long postId) {
+        Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
+
+        return commentRepository.findByPostAndParentIsNullOrderByCreatedAtAsc(post)
+                .stream()
+                .map(CommentResponse::from)
+                .collect(Collectors.toList());
     }
 }

@@ -1,4 +1,39 @@
+// src/main/java/com/gridhub/gridhub/domain/comment/controller/CommentController.java
 package com.gridhub.gridhub.domain.comment.controller;
 
+import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;
+import com.gridhub.gridhub.domain.comment.dto.CommentResponse;
+import com.gridhub.gridhub.domain.comment.service.CommentService;
+import com.gridhub.gridhub.global.security.UserDetailsImpl;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/posts/{postId}/comments")
 public class CommentController {
+
+    private final CommentService commentService;
+
+    @PostMapping
+    public ResponseEntity<Void> createComment(
+            @PathVariable Long postId,
+            @Valid @RequestBody CommentCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        commentService.createComment(postId, request, userDetails.getUsername());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping
+    public ResponseEntity<List<CommentResponse>> getComments(@PathVariable Long postId) {
+        List<CommentResponse> comments = commentService.getComments(postId);
+        return ResponseEntity.ok(comments);
+    }
 }
