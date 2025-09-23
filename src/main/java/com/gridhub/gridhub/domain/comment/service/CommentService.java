@@ -1,4 +1,3 @@
-// src/main/java/com/gridhub/gridhub/domain/comment/service/CommentService.java
 package com.gridhub.gridhub.domain.comment.service;
 
 import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;

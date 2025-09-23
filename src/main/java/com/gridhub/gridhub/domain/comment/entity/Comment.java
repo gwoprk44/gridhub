@@ -1,4 +1,3 @@
-// src/main/java/com/gridhub/gridhub/domain/comment/entity/Comment.java
 package com.gridhub.gridhub.domain.comment.entity;
 
 import com.gridhub.gridhub.domain.BaseTimeEntity;
