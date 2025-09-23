@@ -2,6 +2,7 @@ package com.gridhub.gridhub.domain.post.controller;
 
 import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
 import com.gridhub.gridhub.domain.post.dto.PostIdResponse;
+import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.service.PostService;
 import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -9,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -34,5 +32,11 @@ public class PostController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(new PostIdResponse(postId));
+    }
+
+    @GetMapping("/{postId}")
+    public ResponseEntity<PostResponse> getPost(@PathVariable Long postId) {
+        PostResponse postResponse = postService.getPost(postId);
+        return ResponseEntity.ok(postResponse);
     }
 }
