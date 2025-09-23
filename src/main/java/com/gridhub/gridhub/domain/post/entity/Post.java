@@ -43,4 +43,12 @@ public class Post extends BaseTimeEntity {
         this.category = category;
         this.author = author;
     }
+
+    /*
+    * 게시글 수정 메서드
+    * */
+    public void update(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
 }
