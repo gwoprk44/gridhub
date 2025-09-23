@@ -1,7 +1,7 @@
-package com.gridhub.f1.domain.post.dto;
+package com.gridhub.gridhub.domain.post.dto;
 
-import com.gridhub.f1.domain.post.entity.Post;
-import com.gridhub.f1.domain.post.entity.PostCategory;
+import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.entity.PostCategory;
 
 import java.time.LocalDateTime;
 

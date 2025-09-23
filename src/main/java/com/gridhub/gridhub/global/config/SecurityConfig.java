@@ -1,8 +1,8 @@
-package com.gridhub.f1.global.config;
+package com.gridhub.gridhub.global.config;
 
-import com.gridhub.f1.global.security.JwtAuthenticationFilter;
-import com.gridhub.f1.global.security.UserDetailsServiceImpl;
-import com.gridhub.f1.global.util.JwtUtil;
+import com.gridhub.gridhub.global.security.JwtAuthenticationFilter;
+import com.gridhub.gridhub.global.security.UserDetailsServiceImpl;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,4 +1,4 @@
-package com.gridhub.f1.domain.comment.controller;
+package com.gridhub.gridhub.domain.comment.controller;
 
 public class CommentController {
 }

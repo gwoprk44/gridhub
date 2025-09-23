@@ -1,14 +1,14 @@
-package com.gridhub.f1.domain.comment.service;
+package com.gridhub.gridhub.domain.comment.service;
 
-import com.gridhub.f1.domain.comment.dto.CommentCreateRequest;
-import com.gridhub.f1.domain.comment.entity.Comment;
-import com.gridhub.f1.domain.comment.exception.CommentNotFoundException;
-import com.gridhub.f1.domain.comment.exception.InvalidParentComment;
-import com.gridhub.f1.domain.comment.repository.CommentRepository;
-import com.gridhub.f1.domain.post.entity.Post;
-import com.gridhub.f1.domain.post.exception.PostNotFoundException;
-import com.gridhub.f1.domain.post.repository.PostRepository;
-import com.gridhub.f1.domain.user.entity.User;
+import com.gridhub.gridhub.domain.comment.dto.CommentCreateRequest;
+import com.gridhub.gridhub.domain.comment.entity.Comment;
+import com.gridhub.gridhub.domain.comment.exception.CommentNotFoundException;
+import com.gridhub.gridhub.domain.comment.exception.InvalidParentComment;
+import com.gridhub.gridhub.domain.comment.repository.CommentRepository;
+import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
+import com.gridhub.gridhub.domain.post.repository.PostRepository;
+import com.gridhub.gridhub.domain.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

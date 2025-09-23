@@ -1,4 +1,4 @@
-package com.gridhub.f1.domain;
+package com.gridhub.gridhub.domain;
 
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;

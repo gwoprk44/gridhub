@@ -1,6 +1,6 @@
-package com.gridhub.f1.domain.user.repository;
+package com.gridhub.gridhub.domain.user.repository;
 
-import com.gridhub.f1.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

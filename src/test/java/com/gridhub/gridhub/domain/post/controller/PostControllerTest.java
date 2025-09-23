@@ -1,14 +1,14 @@
-package com.gridhub.f1.domain.post.controller;
+package com.gridhub.gridhub.domain.post.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gridhub.f1.domain.post.dto.PostCreateRequest;
-import com.gridhub.f1.domain.post.dto.PostUpdateRequest;
-import com.gridhub.f1.domain.post.entity.PostCategory;
-import com.gridhub.f1.domain.post.repository.PostRepository;
-import com.gridhub.f1.domain.user.entity.User;
-import com.gridhub.f1.domain.user.entity.UserRole;
-import com.gridhub.f1.domain.user.repository.UserRepository;
-import com.gridhub.f1.global.util.JwtUtil;
+import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
+import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
+import com.gridhub.gridhub.domain.post.entity.PostCategory;
+import com.gridhub.gridhub.domain.post.repository.PostRepository;
+import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

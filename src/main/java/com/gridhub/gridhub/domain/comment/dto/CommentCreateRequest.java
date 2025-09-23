@@ -1,4 +1,4 @@
-package com.gridhub.f1.domain.comment.dto;
+package com.gridhub.gridhub.domain.comment.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

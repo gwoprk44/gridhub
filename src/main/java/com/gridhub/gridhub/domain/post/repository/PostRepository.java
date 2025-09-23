@@ -1,6 +1,6 @@
-package com.gridhub.f1.domain.post.repository;
+package com.gridhub.gridhub.domain.post.repository;
 
-import com.gridhub.f1.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.entity.Post;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PostRepository extends JpaRepository<Post, Long> {

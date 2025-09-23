@@ -1,8 +1,8 @@
-package com.gridhub.f1.domain.post.dto;
+package com.gridhub.gridhub.domain.post.dto;
 
-import com.gridhub.f1.domain.post.entity.Post;
-import com.gridhub.f1.domain.post.entity.PostCategory;
-import com.gridhub.f1.domain.user.entity.User;
+import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.entity.PostCategory;
+import com.gridhub.gridhub.domain.user.entity.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

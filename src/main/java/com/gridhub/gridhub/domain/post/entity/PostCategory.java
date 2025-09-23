@@ -1,4 +1,4 @@
-package com.gridhub.f1.domain.post.entity;
+package com.gridhub.gridhub.domain.post.entity;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

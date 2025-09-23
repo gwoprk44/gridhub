@@ -1,4 +1,4 @@
-package com.gridhub.f1.global.exception;
+package com.gridhub.gridhub.global.exception;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

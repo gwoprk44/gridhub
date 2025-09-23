@@ -1,11 +1,11 @@
 // UserAuthControllerTest.java
-package com.gridhub.f1.domain.user.controller;
+package com.gridhub.gridhub.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gridhub.f1.domain.user.dto.LoginRequest;
-import com.gridhub.f1.domain.user.dto.SignUpRequest;
-import com.gridhub.f1.domain.user.repository.UserRepository;
-import com.gridhub.f1.domain.user.service.UserService;
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
+import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.domain.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

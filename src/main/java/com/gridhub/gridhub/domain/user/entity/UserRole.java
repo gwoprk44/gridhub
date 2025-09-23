@@ -1,4 +1,4 @@
-package com.gridhub.f1.domain.user.entity;
+package com.gridhub.gridhub.domain.user.entity;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

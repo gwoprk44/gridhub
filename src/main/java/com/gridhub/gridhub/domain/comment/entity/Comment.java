@@ -1,8 +1,8 @@
-package com.gridhub.f1.domain.comment.entity;
+package com.gridhub.gridhub.domain.comment.entity;
 
-import com.gridhub.f1.domain.BaseTimeEntity;
-import com.gridhub.f1.domain.post.entity.Post;
-import com.gridhub.f1.domain.user.entity.User;
+import com.gridhub.gridhub.domain.BaseTimeEntity;
+import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

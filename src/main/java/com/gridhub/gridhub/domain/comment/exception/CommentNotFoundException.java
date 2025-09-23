@@ -1,7 +1,7 @@
-package com.gridhub.f1.domain.comment.exception;
+package com.gridhub.gridhub.domain.comment.exception;
 
-import com.gridhub.f1.global.exception.BusinessException;
-import com.gridhub.f1.global.exception.ErrorCode;
+import com.gridhub.gridhub.global.exception.BusinessException;
+import com.gridhub.gridhub.global.exception.ErrorCode;
 
 public class CommentNotFoundException extends BusinessException {
     public CommentNotFoundException() {

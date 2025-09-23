@@ -1,4 +1,4 @@
-package com.gridhub.f1;
+package com.gridhub.gridhub;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

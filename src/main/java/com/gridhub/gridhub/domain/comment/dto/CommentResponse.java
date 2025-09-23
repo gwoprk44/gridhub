@@ -1,6 +1,6 @@
-package com.gridhub.f1.domain.comment.dto;
+package com.gridhub.gridhub.domain.comment.dto;
 
-import com.gridhub.f1.domain.comment.entity.Comment;
+import com.gridhub.gridhub.domain.comment.entity.Comment;
 
 import java.time.LocalDateTime;
 import java.util.List;

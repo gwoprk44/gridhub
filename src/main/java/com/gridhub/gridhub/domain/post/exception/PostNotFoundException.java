@@ -1,7 +1,7 @@
-package com.gridhub.f1.domain.post.exception;
+package com.gridhub.gridhub.domain.post.exception;
 
-import com.gridhub.f1.global.exception.BusinessException;
-import com.gridhub.f1.global.exception.ErrorCode;
+import com.gridhub.gridhub.global.exception.BusinessException;
+import com.gridhub.gridhub.global.exception.ErrorCode;
 
 public class PostNotFoundException extends BusinessException {
     public PostNotFoundException() {

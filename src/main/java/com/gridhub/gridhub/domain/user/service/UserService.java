@@ -1,15 +1,15 @@
 // src/main/java/com/gridhub/gridhub/domain/user/service/UserService.java
-package com.gridhub.f1.domain.user.service;
+package com.gridhub.gridhub.domain.user.service;
 
-import com.gridhub.f1.domain.user.dto.LoginRequest;
-import com.gridhub.f1.domain.user.dto.SignUpRequest;
-import com.gridhub.f1.domain.user.entity.User;
-import com.gridhub.f1.domain.user.exception.EmailAlreadyExistsException;
-import com.gridhub.f1.domain.user.exception.InvalidPasswordException;
-import com.gridhub.f1.domain.user.exception.NicknameAlreadyExistsException;
-import com.gridhub.f1.domain.user.exception.UserNotFoundException;
-import com.gridhub.f1.domain.user.repository.UserRepository;
-import com.gridhub.f1.global.util.JwtUtil;
+import com.gridhub.gridhub.domain.user.dto.LoginRequest;
+import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
+import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.InvalidPasswordException;
+import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.global.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

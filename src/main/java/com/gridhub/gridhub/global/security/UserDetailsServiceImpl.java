@@ -1,7 +1,7 @@
-package com.gridhub.f1.global.security;
+package com.gridhub.gridhub.global.security;
 
-import com.gridhub.f1.domain.user.entity.User;
-import com.gridhub.f1.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

@@ -1,7 +1,7 @@
 // src/main/java/com/gridhub/gridhub/global/util/JwtUtil.java
-package com.gridhub.f1.global.util;
+package com.gridhub.gridhub.global.util;
 
-import com.gridhub.f1.domain.user.entity.UserRole;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException; // 명시적 임포트

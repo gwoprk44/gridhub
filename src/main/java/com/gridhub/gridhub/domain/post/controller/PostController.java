@@ -1,8 +1,8 @@
-package com.gridhub.f1.domain.post.controller;
+package com.gridhub.gridhub.domain.post.controller;
 
-import com.gridhub.f1.domain.post.dto.*;
-import com.gridhub.f1.domain.post.service.PostService;
-import com.gridhub.f1.global.security.UserDetailsImpl;
+import com.gridhub.gridhub.domain.post.dto.*;
+import com.gridhub.gridhub.domain.post.service.PostService;
+import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

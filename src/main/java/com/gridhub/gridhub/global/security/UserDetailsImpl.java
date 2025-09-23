@@ -1,7 +1,7 @@
-package com.gridhub.f1.global.security;
+package com.gridhub.gridhub.global.security;
 
-import com.gridhub.f1.domain.user.entity.User;
-import com.gridhub.f1.domain.user.entity.UserRole;
+import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
