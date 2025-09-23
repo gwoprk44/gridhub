@@ -62,4 +62,15 @@ public class PostController {
 
         return ResponseEntity.ok().build(); // 성공시 200 OK와 빈 BODY 응답.
     }
+
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        String currentUserEmail = userDetails.getUsername();
+        postService.deletePost(postId, currentUserEmail);
+
+        return ResponseEntity.noContent().build(); // 성공시 204 No Content 응답.
+    }
 }
