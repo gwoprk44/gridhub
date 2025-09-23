@@ -60,4 +60,9 @@ public class Comment extends BaseTimeEntity {
     public void softDelete() {
         this.isDeleted = true;
     }
+
+    // === 수정 메서드 추가
+    public void update(String content) {
+        this.content = content;
+    }
 }
