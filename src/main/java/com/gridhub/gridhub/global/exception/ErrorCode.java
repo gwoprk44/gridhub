@@ -22,7 +22,8 @@ public enum ErrorCode {
 
     //Post
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "해당 게시글을 찾을 수 없습니다."),
-    POST_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글을 수정할 권한이 없습니다.");
+    POST_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글을 수정할 권한이 없습니다."),
+    POST_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "P003", "게시글을 삭제할 권한이 없습니다.");
     // TODO: 앞으로 필요한 에러 코드를 여기에 추가
 
     private final HttpStatus status;
