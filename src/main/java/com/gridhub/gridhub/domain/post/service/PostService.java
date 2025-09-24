@@ -5,9 +5,9 @@ import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
-import com.gridhub.gridhub.domain.post.exception.PostDeleteForbiddenException;
-import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
-import com.gridhub.gridhub.domain.post.exception.PostUpdateForbiddenException;
+import com.gridhub.gridhub.domain.post.entity.PostLike;
+import com.gridhub.gridhub.domain.post.exception.*;
+import com.gridhub.gridhub.domain.post.repository.PostLikeRepository;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
@@ -25,6 +25,7 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final UserRepository userRepository; // 작성자 정보 호출용
+    private final PostLikeRepository postLikeRepository; // 게시글 추천
 
     /*
     * 게시글 생성
@@ -119,6 +120,45 @@ public class PostService {
 
         // 4. 게시글 삭제
         postRepository.delete(post);
+    }
+
+    /*
+    * 게시글 추천
+    * */
+    @Transactional
+    public void addLike(Long postId, String userEmail) {
+        User user =
+                userRepository.findByEmail(userEmail)
+                        .orElseThrow(UserNotFoundException::new);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 이미 추천했는지 확인
+        if (postLikeRepository.findByUserAndPost(user, post).isPresent()) {
+            throw new AlreadyLikedPostException();
+        }
+
+        PostLike postLike = PostLike.builder().user(user).post(post).build();
+        postLikeRepository.save(postLike);
+        post.increaseLikeCount();
+    }
+
+    /*
+    * 게시글 추천 삭제
+    * */
+    @Transactional
+    public void removeLike(Long postId, String userEmail) {
+        User user =
+                userRepository.findByEmail(userEmail)
+                        .orElseThrow(UserNotFoundException::new);
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        PostLike postLike = postLikeRepository.findByUserAndPost(user, post)
+                .orElseThrow(LikeNotFoundException::new);
+
+        postLikeRepository.delete(postLike);
+        post.decreaseLikeCount();
     }
 
     /**
