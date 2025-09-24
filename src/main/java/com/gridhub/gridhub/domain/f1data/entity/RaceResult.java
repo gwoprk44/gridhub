@@ -50,4 +50,8 @@ public class RaceResult {
         this.raceControls.add(raceControl);
         raceControl.setRaceResult(this);
     }
+
+    public void setRace(Race race) {
+        this.race = race;
+    }
 }

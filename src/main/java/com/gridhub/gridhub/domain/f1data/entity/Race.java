@@ -71,7 +71,7 @@ public class Race extends BaseTimeEntity {
     /**
      * 시즌 연도
      */
-    @Column(nullable = false)
+    @Column(name = "race_year", nullable = false)
     private Integer year;
 
     /**
@@ -98,5 +98,8 @@ public class Race extends BaseTimeEntity {
     // == 연관관계 편의 메서드 == //
     public void setRaceResult(RaceResult raceResult) {
         this.raceResult = raceResult;
+        if (raceResult != null && raceResult.getRace() != this) {
+            raceResult.setRace(this); // RaceResult에도 Race 객체를 설정 (양방향)
+        }
     }
 }

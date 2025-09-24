@@ -44,7 +44,7 @@ public class F1DataSyncService {
         log.info("F1 데이터 동기화 스케줄을 시작합니다.");
         int currentYear = Year.now().getValue();
 
-        // 1. 드라이버 및 팀 정보 동기화 (시즌 중 라인업 변경이 있을 수 있으므로 주기적으로 실행)
+        // 1. 드라이버 및 팀 정보 동기화
         synchronizeDriversAndTeams(currentYear);
 
         // 2. 레이스 일정(Meeting, Session) 동기화
@@ -58,8 +58,6 @@ public class F1DataSyncService {
     }
 
     private void synchronizeDriversAndTeams(int year) {
-        // ... (이전 코드와 동일하게 유지)
-        // 가장 최근 레이스 세션을 기준으로 드라이버/팀 정보를 가져옴
         Optional<SessionResponse> latestSessionOpt = openF1Client.getMeetingsByYear(year).stream()
                 .findFirst()
                 .flatMap(meeting -> openF1Client.getSessionsByMeeting(meeting.meetingKey()).stream()
@@ -73,7 +71,10 @@ public class F1DataSyncService {
         List<DriverResponse> driverDtos = openF1Client.getDriversBySession(latestSessionOpt.get().sessionKey());
 
         Map<String, Team> teamsMap = driverDtos.stream()
-                .map(dto -> new Team(dto.teamName(), dto.teamColour()))
+                .map(dto -> Team.builder()
+                        .name(dto.teamName())
+                        .teamColour(dto.teamColour())
+                        .build())
                 .distinct()
                 .collect(Collectors.toMap(Team::getName, Function.identity(), (e1, e2) -> e1));
 
@@ -102,22 +103,25 @@ public class F1DataSyncService {
         for (MeetingResponse meetingDto : meetingDtos) {
             List<SessionResponse> sessionDtos = openF1Client.getSessionsByMeeting(meetingDto.meetingKey());
             sessionDtos.forEach(sessionDto -> {
-                Race race = Race.builder()
-                        .id(sessionDto.sessionKey())
-                        .sessionName(sessionDto.sessionName())
-                        .dateStart(sessionDto.dateStart())
-                        .dateEnd(sessionDto.dateEnd())
-                        .meetingKey(meetingDto.meetingKey())
-                        .meetingName(meetingDto.meetingName())
-                        .countryName(meetingDto.countryName())
-                        .circuitShortName(meetingDto.circuitShortName())
-                        .year(meetingDto.year())
-                        .build();
-                racesToSave.add(race);
+                // DB에 해당 Race가 없을 때만 새로 생성 (중복 방지)
+                if (!raceRepository.existsById(sessionDto.sessionKey())) {
+                    Race race = Race.builder()
+                            .id(sessionDto.sessionKey())
+                            .sessionName(sessionDto.sessionName())
+                            .dateStart(sessionDto.dateStart())
+                            .dateEnd(sessionDto.dateEnd())
+                            .meetingKey(meetingDto.meetingKey())
+                            .meetingName(meetingDto.meetingName())
+                            .countryName(meetingDto.countryName())
+                            .circuitShortName(meetingDto.circuitShortName())
+                            .year(meetingDto.year())
+                            .build();
+                    racesToSave.add(race);
+                }
             });
         }
         raceRepository.saveAll(racesToSave);
-        log.info("{}개의 세션(레이스) 일정 동기화 완료.", racesToSave.size());
+        log.info("{}개의 신규 세션(레이스) 일정 동기화 완료.", racesToSave.size());
     }
 
     private void synchronizeFinishedRaceResults(List<MeetingResponse> meetings) {
@@ -139,7 +143,10 @@ public class F1DataSyncService {
                             Race race = raceEntityOpt.get();
                             log.info("'{}' 결과 데이터 동기화 시작.", race.getMeetingName());
 
-                            RaceResult raceResult = createAndSaveRaceResult(race, sessions, driverMap);
+                            RaceResult raceResult = createRaceResult(race, sessions, driverMap);
+
+                            race.setRaceResult(raceResult);
+
                             raceResultRepository.save(raceResult);
                         }
                     });
@@ -147,7 +154,7 @@ public class F1DataSyncService {
         log.info("종료된 레이스 결과 데이터 동기화를 종료합니다.");
     }
 
-    private RaceResult createAndSaveRaceResult(Race race, List<SessionResponse> sessions, Map<Integer, Driver> driverMap) {
+    private RaceResult createRaceResult(Race race, List<SessionResponse> sessions, Map<Integer, Driver> driverMap) {
         // 1. RaceResult 엔티티 생성
         Map<String, Object> latestWeather = findLatestWeather(race.getId());
         RaceResult raceResult = RaceResult.builder().race(race).latestWeather(latestWeather).build();
@@ -155,18 +162,17 @@ public class F1DataSyncService {
         // 2. 퀄리파잉 및 레이스 결과 Position 엔티티 생성
         Map<Integer, Integer> qualifyingResults = findAndFetchQualifyingResults(sessions);
         Map<Integer, Integer> raceResults = openF1Client.getRaceResult(race.getId()).stream()
-                .collect(Collectors.toMap(PositionResponse::driverNumber, PositionResponse::position));
+                .collect(Collectors.toMap(PositionResponse::driverNumber, PositionResponse::position, (pos1, pos2) -> pos1)); // 중복 키 발생 시 첫 번째 값 사용
 
-        raceResults.keySet().forEach(driverNumber -> {
+        // 모든 드라이버에 대해 Position 엔티티 생성
+        driverMap.keySet().forEach(driverNumber -> {
             Driver driver = driverMap.get(driverNumber);
-            if (driver != null) {
-                Position position = Position.builder()
-                        .driver(driver)
-                        .qualifyingPosition(qualifyingResults.get(driverNumber))
-                        .racePosition(raceResults.get(driverNumber))
-                        .build();
-                raceResult.addPosition(position);
-            }
+            Position position = Position.builder()
+                    .driver(driver)
+                    .qualifyingPosition(qualifyingResults.get(driverNumber)) // 결과가 없으면 null
+                    .racePosition(raceResults.get(driverNumber))       // 결과가 없으면 null
+                    .build();
+            raceResult.addPosition(position);
         });
 
         // 3. RaceControl 메시지 엔티티 생성
@@ -193,7 +199,7 @@ public class F1DataSyncService {
 
     private Map<String, Object> findLatestWeather(long raceSessionKey) {
         return openF1Client.getWeather(raceSessionKey).stream()
-                .max(Comparator.comparing(w -> w.airTemperature() != null ? w.airTemperature() : Float.MIN_VALUE)) // 예시: 기온이 가장 높은 기록
+                .max(Comparator.comparing(w -> w.airTemperature() != null ? w.airTemperature() : Float.MIN_VALUE))
                 .map(w -> {
                     Map<String, Object> weatherMap = new HashMap<>();
                     weatherMap.put("air_temperature", w.airTemperature());
