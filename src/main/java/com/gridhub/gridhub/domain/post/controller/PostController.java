@@ -97,6 +97,24 @@ public class PostController {
         return ResponseEntity.noContent().build(); // 성공시 204 No Content 응답.
     }
 
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<Void> addLike(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        postService.addLike(postId, userDetails.getUsername());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{postId}/like")
+    public ResponseEntity<Void> removeLike(
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        postService.removeLike(postId, userDetails.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+
 
     /*
     * 헬퍼 메서드
