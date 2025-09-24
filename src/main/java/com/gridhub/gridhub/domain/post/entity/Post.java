@@ -10,7 +10,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "post")
@@ -35,6 +37,12 @@ public class Post extends BaseTimeEntity {
 
     @Column(nullable = false)
     private int viewCount = 0;
+
+    @Column(nullable = false)
+    private int likeCount = 0;
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PostLike> likes = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -64,5 +72,16 @@ public class Post extends BaseTimeEntity {
      */
     public void increaseViewCount() {
         this.viewCount++;
+    }
+
+    /*
+    * 추천수 관리 메서드
+    * */
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        this.likeCount--;
     }
 }
