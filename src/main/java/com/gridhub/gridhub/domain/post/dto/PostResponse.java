@@ -12,6 +12,7 @@ public record PostResponse(
         String authorNickname,
         PostCategory category,
         int viewCount,
+        int likeCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -24,6 +25,7 @@ public record PostResponse(
                 post.getAuthor().getNickname(), // 지연 로딩 발생 지점
                 post.getCategory(),
                 post.getViewCount(),
+                post.getLikeCount(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );
