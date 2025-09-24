@@ -50,13 +50,22 @@ public class PostService {
     * */
 
     // 게시글 단건 조회
-    @Transactional(readOnly = true)
-    public PostResponse getPost(Long postId) {
-        // 1. postId로 게시글 조회. 존재하지 않으면 PostNotFoundException 발생
+    @Transactional
+    public PostResponse getPostAndUpdateViewCount(Long postId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(PostNotFoundException::new);
 
-        // 2. 조회된 엔티티 dto로 변환하여 반환
+        // 조회수 증가
+        post.increaseViewCount();
+
+        return PostResponse.from(post);
+    }
+
+    // 조회수 증가 로직이 없는 순수 조회 메서드 (필요시 사용)
+    @Transactional(readOnly = true)
+    public PostResponse getPost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
         return PostResponse.from(post);
     }
 
