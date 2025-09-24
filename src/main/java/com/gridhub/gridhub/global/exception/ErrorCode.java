@@ -24,6 +24,8 @@ public enum ErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "해당 게시글을 찾을 수 없습니다."),
     POST_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "P002", "게시글을 수정할 권한이 없습니다."),
     POST_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "P003", "게시글을 삭제할 권한이 없습니다."),
+    ALREADY_LIKED_POST(HttpStatus.CONFLICT, "P004", "이미 추천한 게시글입니다."),
+    LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "P005", "해당 게시글에 대한 추천 기록을 찾을 수 없습니다."),
 
     //Comment
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CM001", "해당 댓글을 찾을 수 없습니다."),
