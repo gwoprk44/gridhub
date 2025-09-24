@@ -5,9 +5,9 @@ import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.entity.PostCategory;
-import com.gridhub.gridhub.domain.post.exception.PostDeleteForbiddenException;
-import com.gridhub.gridhub.domain.post.exception.PostNotFoundException;
-import com.gridhub.gridhub.domain.post.exception.PostUpdateForbiddenException;
+import com.gridhub.gridhub.domain.post.entity.PostLike;
+import com.gridhub.gridhub.domain.post.exception.*;
+import com.gridhub.gridhub.domain.post.repository.PostLikeRepository;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
@@ -40,6 +40,9 @@ class PostServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PostLikeRepository postLikeRepository;
 
     private User author;
     private User anotherUser;
@@ -163,5 +166,80 @@ class PostServiceTest {
         assertThrows(PostDeleteForbiddenException.class,
                 () -> postService.deletePost(post.getId(), anotherUser.getEmail()));
         then(postRepository).should(never()).delete(any(Post.class));
+    }
+
+    @DisplayName("게시글 조회 및 조회수 증가 성공")
+    @Test
+    void getPostAndUpdateViewCount_Success() {
+        // given
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        int initialViewCount = post.getViewCount();
+
+        // when
+        PostResponse response = postService.getPostAndUpdateViewCount(post.getId());
+
+        // then
+        assertThat(response.viewCount()).isEqualTo(initialViewCount + 1);
+        assertThat(post.getViewCount()).isEqualTo(initialViewCount + 1); // 엔티티 상태 변경 확인
+    }
+
+    @DisplayName("게시글 추천 성공")
+    @Test
+    void addLike_Success() {
+        // given
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        given(postLikeRepository.findByUserAndPost(author, post)).willReturn(Optional.empty()); // 아직 추천 안 함
+        int initialLikeCount = post.getLikeCount();
+
+        // when
+        postService.addLike(post.getId(), author.getEmail());
+
+        // then
+        then(postLikeRepository).should().save(any());
+        assertThat(post.getLikeCount()).isEqualTo(initialLikeCount + 1);
+    }
+
+    @DisplayName("게시글 추천 실패 - 이미 추천한 경우")
+    @Test
+    void addLike_Fail_AlreadyLiked() {
+        // given
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        given(postLikeRepository.findByUserAndPost(author, post)).willReturn(Optional.of(mock(PostLike.class))); // 이미 추천함
+
+        // when & then
+        assertThrows(AlreadyLikedPostException.class, () -> postService.addLike(post.getId(), author.getEmail()));
+    }
+
+    @DisplayName("게시글 추천 취소 성공")
+    @Test
+    void removeLike_Success() {
+        // given
+        PostLike postLike = PostLike.builder().user(author).post(post).build();
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        given(postLikeRepository.findByUserAndPost(author, post)).willReturn(Optional.of(postLike));
+        post.increaseLikeCount(); // likeCount를 1로 설정
+        int initialLikeCount = post.getLikeCount();
+
+        // when
+        postService.removeLike(post.getId(), author.getEmail());
+
+        // then
+        then(postLikeRepository).should().delete(postLike);
+        assertThat(post.getLikeCount()).isEqualTo(initialLikeCount - 1);
+    }
+
+    @DisplayName("게시글 추천 취소 실패 - 추천 기록이 없는 경우")
+    @Test
+    void removeLike_Fail_LikeNotFound() {
+        // given
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        given(postLikeRepository.findByUserAndPost(author, post)).willReturn(Optional.empty());
+
+        // when & then
+        assertThrows(LikeNotFoundException.class, () -> postService.removeLike(post.getId(), author.getEmail()));
     }
 }

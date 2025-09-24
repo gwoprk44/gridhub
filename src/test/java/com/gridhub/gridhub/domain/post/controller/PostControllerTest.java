@@ -3,12 +3,14 @@ package com.gridhub.gridhub.domain.post.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
+import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.entity.PostCategory;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.global.util.JwtUtil;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +19,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -44,6 +48,7 @@ public class PostControllerTest {
     private String anotherUserToken;
     private String adminToken;
     private User author;
+    private Post testPost;
 
     @BeforeEach
     void setUp() {
@@ -62,6 +67,10 @@ public class PostControllerTest {
         authorToken = jwtUtil.createToken(author.getEmail(), author.getRole());
         anotherUserToken = jwtUtil.createToken(anotherUser.getEmail(), anotherUser.getRole());
         adminToken = jwtUtil.createToken(admin.getEmail(), admin.getRole());
+
+        // 테스트용 게시글 생성
+        testPost = Post.builder().title("test post").content("test content").author(author).category(PostCategory.FREE).build();
+        postRepository.save(testPost);
     }
 
     @DisplayName("게시글 작성 성공")
@@ -129,6 +138,62 @@ public class PostControllerTest {
         mockMvc.perform(delete("/api/posts/" + postId)
                         .header("Authorization", adminToken))
                 .andExpect(status().isNoContent())
+                .andDo(print());
+    }
+
+    @DisplayName("게시글 조회 시 조회수 증가 및 쿠키를 이용한 중복 방지")
+    @Test
+    void getPost_ViewCount_IncreasesOnFirstViewOnly() throws Exception {
+        // when & then: 첫 번째 조회 (조회수 1 증가, 쿠키 발급)
+        MvcResult result = mockMvc.perform(get("/api/posts/" + testPost.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.viewCount").value(1))
+                .andDo(print())
+                .andReturn();
+
+        // 응답에서 쿠키 추출
+        Cookie viewCookie = result.getResponse().getCookie("post_view");
+        assertThat(viewCookie).isNotNull();
+
+        // when & then: 두 번째 조회 (쿠키와 함께 요청, 조회수 증가 안 함)
+        mockMvc.perform(get("/api/posts/" + testPost.getId())
+                        .cookie(viewCookie)) // 이전 응답에서 받은 쿠키를 요청에 포함
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.viewCount").value(1)) // 조회수가 그대로 1인지 확인
+                .andDo(print());
+    }
+
+    @DisplayName("게시글 추천 및 취소 플로우 테스트")
+    @Test
+    void addAndRemoveLike_Flow_Success() throws Exception {
+        // 1. 추천하기
+        mockMvc.perform(post("/api/posts/" + testPost.getId() + "/like")
+                        .header("Authorization", authorToken))
+                .andExpect(status().isCreated())
+                .andDo(print());
+
+        // 2. 추천 후 조회 (likeCount가 1인지 확인)
+        mockMvc.perform(get("/api/posts/" + testPost.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.likeCount").value(1))
+                .andDo(print());
+
+        // 3. 다시 추천 시도 (409 Conflict 확인)
+        mockMvc.perform(post("/api/posts/" + testPost.getId() + "/like")
+                        .header("Authorization", authorToken))
+                .andExpect(status().isConflict())
+                .andDo(print());
+
+        // 4. 추천 취소하기
+        mockMvc.perform(delete("/api/posts/" + testPost.getId() + "/like")
+                        .header("Authorization", authorToken))
+                .andExpect(status().isNoContent())
+                .andDo(print());
+
+        // 5. 추천 취소 후 조회 (likeCount가 0인지 확인)
+        mockMvc.perform(get("/api/posts/" + testPost.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.likeCount").value(0))
                 .andDo(print());
     }
 }
