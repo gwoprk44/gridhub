@@ -1,13 +1,11 @@
 package com.gridhub.gridhub.domain.f1data.controller;
 
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
+import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
 import com.gridhub.gridhub.domain.f1data.service.F1DataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Year;
 import java.util.List;
@@ -30,5 +28,11 @@ public class F1DataController {
                 f1DataService.getRaceCalendarByYear(targetYear);
 
         return ResponseEntity.ok(calendar);
+    }
+
+    @GetMapping("/races/{raceId}")
+    public ResponseEntity<RaceDetailResponse> getRaceDetail(@PathVariable Long raceId) {
+        RaceDetailResponse raceDetail = f1DataService.getRaceDetail(raceId);
+        return ResponseEntity.ok(raceDetail);
     }
 }
