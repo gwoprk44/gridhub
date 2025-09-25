@@ -46,7 +46,7 @@ public class F1DataService {
                 .orElseThrow(RaceNotFoundException::new);
 
         // 2. 조회된 레이스와 연관된 raceResult 조회(존재하지 않으면 예외 던짐)
-        RaceResult result = raceResultRepository.findByRace(race)
+        RaceResult result = raceResultRepository.findByRaceWithDetails(race)
                 .orElseThrow(RaceResultNotFoundException::new);
 
         // 3. 두 엔티티를 조합하여 최종 응답 dto 생성
