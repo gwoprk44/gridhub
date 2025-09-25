@@ -1,8 +1,11 @@
 package com.gridhub.gridhub.domain.f1data.service;
 
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
-import com.gridhub.gridhub.domain.f1data.entity.Race;
+import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
+import com.gridhub.gridhub.domain.f1data.entity.*;
+import com.gridhub.gridhub.domain.f1data.exception.RaceResultNotFoundException;
 import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
+import com.gridhub.gridhub.domain.f1data.repository.RaceResultRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,9 +14,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,6 +30,9 @@ class F1DataServiceTest {
 
     @Mock
     private RaceRepository raceRepository;
+
+    @Mock
+    private RaceResultRepository raceResultRepository;
 
     @DisplayName("연도별 레이스 캘린더 조회 - 단위 테스트")
     @Test
@@ -67,5 +76,51 @@ class F1DataServiceTest {
 
         assertThat(gp2.meetingName()).isEqualTo("GP2");
         assertThat(gp2.sessions()).hasSize(1);
+    }
+
+    @DisplayName("특정 레이스 상세 정보 조회 - 단위 테스트")
+    @Test
+    void getRaceDetail_Unit_Test() {
+        // given
+        Long raceId = 101L;
+
+        // Mock 엔티티 설정
+        Race mockRace = Race.builder().id(raceId).meetingName("Test GP").sessionName("Race").build();
+        RaceResult mockResult = RaceResult.builder().race(mockRace).latestWeather(Collections.emptyMap()).build();
+
+        Team mockTeam = Team.builder().name("Mercedes").teamColour("00D2BE").build();
+        Driver mockDriver = Driver.builder().id(44).fullName("L. Hamilton").team(mockTeam).build();
+        Position mockPosition = Position.builder().driver(mockDriver).racePosition(1).build();
+        mockResult.addPosition(mockPosition); // 연관관계 설정
+
+        // Mock Repository 설정
+        given(raceRepository.findById(raceId)).willReturn(Optional.of(mockRace));
+        given(raceResultRepository.findByRaceWithDetails(mockRace)).willReturn(Optional.of(mockResult));
+
+        // when
+        RaceDetailResponse result = f1DataService.getRaceDetail(raceId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.sessionKey()).isEqualTo(raceId);
+        assertThat(result.meetingName()).isEqualTo("Test GP");
+        assertThat(result.positions()).hasSize(1);
+        assertThat(result.positions().get(0).driverNumber()).isEqualTo(44);
+        assertThat(result.positions().get(0).racePosition()).isEqualTo(1);
+        assertThat(result.positions().get(0).driverTeamName()).isEqualTo("Mercedes");
+    }
+
+    @DisplayName("특정 레이스 상세 정보 조회 실패 - 결과 없음")
+    @Test
+    void getRaceDetail_Fail_WhenResultNotFound() {
+        // given
+        Long raceId = 101L;
+        Race mockRace = Race.builder().id(raceId).build();
+
+        given(raceRepository.findById(raceId)).willReturn(Optional.of(mockRace));
+        given(raceResultRepository.findByRaceWithDetails(mockRace)).willReturn(Optional.empty()); // 결과가 없도록 설정
+
+        // when & then
+        assertThrows(RaceResultNotFoundException.class, () -> f1DataService.getRaceDetail(raceId));
     }
 }

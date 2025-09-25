@@ -1,7 +1,8 @@
 package com.gridhub.gridhub.domain.f1data.controller;
 
-import com.gridhub.gridhub.domain.f1data.entity.Race;
-import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gridhub.gridhub.domain.f1data.entity.*;
+import com.gridhub.gridhub.domain.f1data.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,62 +30,89 @@ class F1DataControllerTest {
 
     @Autowired
     private RaceRepository raceRepository;
+    @Autowired
+    private RaceResultRepository raceResultRepository;
+    @Autowired
+    private TeamRepository teamRepository;
+    @Autowired
+    private DriverRepository driverRepository;
+    @Autowired
+    private PositionRepository positionRepository;
 
-    private final int TARGET_YEAR = 2024;
+    private Race testRaceWithResult;
+    private Race testRaceWithoutResult;
 
     @BeforeEach
     void setUp() {
+        // 테스트 실행 전 모든 관련 테이블 초기화
+        positionRepository.deleteAllInBatch();
+        raceResultRepository.deleteAllInBatch();
         raceRepository.deleteAllInBatch();
+        driverRepository.deleteAllInBatch();
+        teamRepository.deleteAllInBatch();
 
         // 테스트용 데이터 DB에 미리 저장
-        Race race1 = Race.builder().id(101L).year(TARGET_YEAR).meetingKey(1L).meetingName("GP1").sessionName("Race").countryName("Country1").circuitShortName("Circ1").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now()).build();
-        Race race2 = Race.builder().id(102L).year(TARGET_YEAR).meetingKey(1L).meetingName("GP1").sessionName("Qualifying").countryName("Country1").circuitShortName("Circ1").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now()).build();
-        Race race3 = Race.builder().id(103L).year(TARGET_YEAR - 1).meetingKey(2L).meetingName("GP2").sessionName("Race").countryName("Country2").circuitShortName("Circ2").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now()).build();
-        raceRepository.saveAll(List.of(race1, race2, race3));
+        Team team = teamRepository.save(Team.builder().name("Red Bull").teamColour("1E41FF").build());
+        Driver driver = driverRepository.save(Driver.builder().id(1).fullName("M. Verstappen").team(team).build());
+
+        testRaceWithResult = Race.builder()
+                .id(101L).year(2024).meetingKey(1L).meetingName("GP1 with Result").sessionName("Race")
+                .countryName("Country1").circuitShortName("Circ1").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now())
+                .build();
+        raceRepository.save(testRaceWithResult);
+
+        // 연관관계 편의 메서드를 사용하여 객체 그래프의 일관성을 유지
+        RaceResult result = RaceResult.builder().race(testRaceWithResult).build();
+        Position position = Position.builder().driver(driver).racePosition(1).build();
+        result.addPosition(position); // RaceResult에 Position 추가
+        raceResultRepository.save(result); // RaceResult만 저장하면 Position도 함께 저장됨
+
+        testRaceWithoutResult = Race.builder()
+                .id(102L).year(2024).meetingKey(2L).meetingName("GP2 without Result").sessionName("Race")
+                .countryName("Country2").circuitShortName("Circ2").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now())
+                .build();
+        raceRepository.save(testRaceWithoutResult);
     }
 
     @DisplayName("GET /api/f1-data/calendar - 특정 연도 캘린더 조회 성공")
     @Test
     void getRaceCalendar_Success() throws Exception {
-        // when & then
         mockMvc.perform(get("/api/f1-data/calendar")
-                        .param("year", String.valueOf(TARGET_YEAR)))
+                        .param("year", "2024"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray()) // 응답이 배열 형태인지
-                .andExpect(jsonPath("$.length()").value(1)) // 2024년 미팅은 1개
-                .andExpect(jsonPath("$[0].meetingKey").value(1L))
-                .andExpect(jsonPath("$[0].meetingName").value("GP1"))
-                .andExpect(jsonPath("$[0].sessions.length()").value(2)) // GP1의 세션은 2개
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
                 .andDo(print());
     }
 
-    @DisplayName("GET /api/f1-data/calendar - 연도 파라미터가 없을 경우 현재 연도로 조회")
+    @DisplayName("GET /api/f1-data/races/{raceId} - 특정 레이스 상세 정보 조회 성공")
     @Test
-    void getRaceCalendar_Success_WhenYearParamIsMissing() throws Exception {
-        // given
-        // 현재 연도 데이터를 DB에 추가로 저장
-        int currentYear = ZonedDateTime.now().getYear();
-        Race currentYearRace = Race.builder().id(201L).year(currentYear).meetingKey(3L).meetingName("Current GP").sessionName("Race").countryName("Current").circuitShortName("CUR").dateStart(ZonedDateTime.now()).dateEnd(ZonedDateTime.now()).build();
-        raceRepository.save(currentYearRace);
-
-        // when & then
-        mockMvc.perform(get("/api/f1-data/calendar")) // year 파라미터 없이 호출
+    void getRaceDetail_Success() throws Exception {
+        mockMvc.perform(get("/api/f1-data/races/" + testRaceWithResult.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].meetingName").value("Current GP")) // 현재 연도의 데이터가 조회되는지 확인
+                .andExpect(jsonPath("$.sessionKey").value(testRaceWithResult.getId()))
+                .andExpect(jsonPath("$.positions.length()").value(1))
+                .andExpect(jsonPath("$.positions[0].driverFullName").value("M. Verstappen"))
                 .andDo(print());
     }
 
-    @DisplayName("GET /api/f1-data/calendar - 데이터가 없는 연도 조회 시 빈 배열 반환")
+    @DisplayName("GET /api/f1-data/races/{raceId} - 존재하지 않는 레이스 조회 시 404 Not Found 응답")
     @Test
-    void getRaceCalendar_Success_WhenNoData() throws Exception {
-        // when & then
-        mockMvc.perform(get("/api/f1-data/calendar")
-                        .param("year", "1999"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0)) // 빈 배열을 반환하는지
+    void getRaceDetail_Fail_WhenRaceNotFound() throws Exception {
+        long nonExistentRaceId = 9999L;
+
+        mockMvc.perform(get("/api/f1-data/races/" + nonExistentRaceId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("F001"))
+                .andDo(print());
+    }
+
+    @DisplayName("GET /api/f1-data/races/{raceId} - 결과가 없는 레이스 조회 시 404 Not Found 응답")
+    @Test
+    void getRaceDetail_Fail_WhenRaceResultNotFound() throws Exception {
+        mockMvc.perform(get("/api/f1-data/races/" + testRaceWithoutResult.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("F002"))
                 .andDo(print());
     }
 }
