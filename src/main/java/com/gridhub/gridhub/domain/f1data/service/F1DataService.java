@@ -1,8 +1,13 @@
 package com.gridhub.gridhub.domain.f1data.service;
 
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
+import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
 import com.gridhub.gridhub.domain.f1data.entity.Race;
+import com.gridhub.gridhub.domain.f1data.entity.RaceResult;
+import com.gridhub.gridhub.domain.f1data.exception.RaceNotFoundException;
+import com.gridhub.gridhub.domain.f1data.exception.RaceResultNotFoundException;
 import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
+import com.gridhub.gridhub.domain.f1data.repository.RaceResultRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +21,7 @@ import java.util.stream.Collectors;
 public class F1DataService {
 
     private final RaceRepository raceRepository;
+    private final RaceResultRepository raceResultRepository;
 
     @Transactional(readOnly = true)
     public List<RaceCalendarDto> getRaceCalendarByYear(int year) {
@@ -31,5 +37,19 @@ public class F1DataService {
         return racesGroupedByMeeting.values().stream()
                 .map(RaceCalendarDto::from)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public RaceDetailResponse getRaceDetail(Long raceId) {
+        // 1. raceId로 레이스 엔티티 조회(존재하지 않으면 예외 던짐)
+        Race race = raceRepository.findById(raceId)
+                .orElseThrow(RaceNotFoundException::new);
+
+        // 2. 조회된 레이스와 연관된 raceResult 조회(존재하지 않으면 예외 던짐)
+        RaceResult result = raceResultRepository.findByRace(race)
+                .orElseThrow(RaceResultNotFoundException::new);
+
+        // 3. 두 엔티티를 조합하여 최종 응답 dto 생성
+        return RaceDetailResponse.of(race, result);
     }
 }
