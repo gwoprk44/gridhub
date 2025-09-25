@@ -30,7 +30,12 @@ public enum ErrorCode {
     //Comment
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "CM001", "해당 댓글을 찾을 수 없습니다."),
     COMMENT_UPDATE_FORBIDDEN(HttpStatus.FORBIDDEN, "CM002", "댓글을 수정할 권한이 없습니다."),
-    COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "CM003", "댓글을 삭제할 권한이 없습니다.");
+    COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "CM003", "댓글을 삭제할 권한이 없습니다."),
+
+    //Race
+    RACE_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "해당 레이스(세션) 정보를 찾을 수 없습니다."),
+    RACE_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "해당 레이스에 대한 결과 데이터를 찾을 수 없습니다.");
+
     // TODO: 앞으로 필요한 에러 코드를 여기에 추가
 
     private final HttpStatus status;
