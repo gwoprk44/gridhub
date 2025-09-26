@@ -30,4 +30,8 @@ public class Team {
         this.name = name;
         this.teamColour = teamColour;
     }
+
+    public void addDriver(Driver driver) {
+        this.drivers.add(driver);
+    }
 }

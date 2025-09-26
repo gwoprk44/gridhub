@@ -21,12 +21,19 @@ public class Driver {
     @JoinColumn(name = "team_id")
     private Team team;
 
+    public void setTeam(Team team) {
+        this.team = team;
+        team.getDrivers().add(this);
+    }
+
     @Builder
     public Driver(Integer id, String fullName, String headshotUrl, String countryCode, Team team) {
         this.id = id;
         this.fullName = fullName;
         this.headshotUrl = headshotUrl;
         this.countryCode = countryCode;
-        this.team = team;
+        if (team != null) {
+            setTeam(team);
+        }
     }
 }
