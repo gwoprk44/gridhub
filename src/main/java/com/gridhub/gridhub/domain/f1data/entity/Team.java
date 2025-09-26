@@ -3,6 +3,9 @@ package com.gridhub.gridhub.domain.f1data.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "team")
 @Getter
@@ -18,6 +21,9 @@ public class Team {
     private String name;
 
     private String teamColour;
+
+    @OneToMany(mappedBy = "team", fetch = FetchType.LAZY)
+    private List<Driver> drivers = new ArrayList<>();
 
     @Builder
     public Team(String name, String teamColour) {
