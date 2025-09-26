@@ -34,7 +34,13 @@ public enum ErrorCode {
 
     //Race
     RACE_NOT_FOUND(HttpStatus.NOT_FOUND, "F001", "해당 레이스(세션) 정보를 찾을 수 없습니다."),
-    RACE_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "해당 레이스에 대한 결과 데이터를 찾을 수 없습니다.");
+    RACE_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "해당 레이스에 대한 결과 데이터를 찾을 수 없습니다."),
+
+    //Prediction
+    PREDICTION_ALREADY_EXISTS(HttpStatus.CONFLICT, "PR001", "해당 레이스에 대한 예측 기록이 이미 존재합니다."),
+    PREDICTION_PERIOD_INVALID(HttpStatus.BAD_REQUEST, "PR002", "예측 가능한 시간이 아닙니다."),
+    DUPLICATE_DRIVER_PREDICTION(HttpStatus.BAD_REQUEST, "PR003", "한 드라이버를 중복으로 예측할 수 없습니다."),
+    DRIVER_NOT_FOUND(HttpStatus.NOT_FOUND, "PR004", "존재하지 않는 드라이버입니다.");
 
     // TODO: 앞으로 필요한 에러 코드를 여기에 추가
 
