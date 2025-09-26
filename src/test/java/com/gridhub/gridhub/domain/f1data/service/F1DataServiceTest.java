@@ -1,11 +1,15 @@
 package com.gridhub.gridhub.domain.f1data.service;
 
+import com.gridhub.gridhub.domain.f1data.dto.DriverInfoResponse;
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
 import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
+import com.gridhub.gridhub.domain.f1data.dto.TeamInfoResponse;
 import com.gridhub.gridhub.domain.f1data.entity.*;
 import com.gridhub.gridhub.domain.f1data.exception.RaceResultNotFoundException;
+import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
 import com.gridhub.gridhub.domain.f1data.repository.RaceResultRepository;
+import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +37,11 @@ class F1DataServiceTest {
 
     @Mock
     private RaceResultRepository raceResultRepository;
+
+    @Mock
+    private DriverRepository driverRepository;
+    @Mock
+    private TeamRepository teamRepository;
 
     @DisplayName("연도별 레이스 캘린더 조회 - 단위 테스트")
     @Test
@@ -122,5 +131,50 @@ class F1DataServiceTest {
 
         // when & then
         assertThrows(RaceResultNotFoundException.class, () -> f1DataService.getRaceDetail(raceId));
+    }
+
+    @DisplayName("모든 드라이버 목록 조회 - 단위 테스트")
+    @Test
+    void getAllDrivers_Unit_Test() {
+        // given
+        Team mockTeam = Team.builder().name("Mercedes").teamColour("00D2BE").build();
+        Driver mockDriver1 = Driver.builder().id(44).fullName("L. Hamilton").team(mockTeam).build();
+        Driver mockDriver2 = Driver.builder().id(63).fullName("G. Russell").team(mockTeam).build();
+        List<Driver> mockDrivers = List.of(mockDriver1, mockDriver2);
+
+        given(driverRepository.findAll()).willReturn(mockDrivers);
+
+        // when
+        List<DriverInfoResponse> result = f1DataService.getAllDrivers();
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).driverNumber()).isEqualTo(44);
+        assertThat(result.get(0).teamName()).isEqualTo("Mercedes");
+        assertThat(result.get(1).fullName()).isEqualTo("G. Russell");
+    }
+
+    @DisplayName("모든 팀 목록 조회 (소속 드라이버 포함) - 단위 테스트")
+    @Test
+    void getAllTeams_Unit_Test() {
+        // given
+        Team mockTeam = Team.builder().name("Mercedes").teamColour("00D2BE").build();
+        Driver mockDriver1 = Driver.builder().id(44).fullName("L. Hamilton").team(mockTeam).build();
+        Driver mockDriver2 = Driver.builder().id(63).fullName("G. Russell").team(mockTeam).build();
+        mockTeam.getDrivers().addAll(List.of(mockDriver1, mockDriver2)); // 연관관계 설정
+
+        List<Team> mockTeams = List.of(mockTeam);
+
+        given(teamRepository.findAllWithDrivers()).willReturn(mockTeams);
+
+        // when
+        List<TeamInfoResponse> result = f1DataService.getAllTeams();
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).teamName()).isEqualTo("Mercedes");
+        assertThat(result.get(0).drivers()).hasSize(2);
+        assertThat(result.get(0).drivers().get(0).driverNumber()).isEqualTo(44);
+        assertThat(result.get(0).drivers().get(1).fullName()).isEqualTo("G. Russell");
     }
 }
