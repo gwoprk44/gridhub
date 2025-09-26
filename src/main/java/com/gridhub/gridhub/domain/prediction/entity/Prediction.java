@@ -1,6 +1,8 @@
-package com.gridhub.gridhub.domain.f1data.entity;
+package com.gridhub.gridhub.domain.prediction.entity;
 
 import com.gridhub.gridhub.domain.BaseTimeEntity;
+import com.gridhub.gridhub.domain.f1data.entity.Driver;
+import com.gridhub.gridhub.domain.f1data.entity.Race;
 import com.gridhub.gridhub.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

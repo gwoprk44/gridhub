@@ -1,6 +1,6 @@
-package com.gridhub.gridhub.domain.f1data.repository;
+package com.gridhub.gridhub.domain.prediction.repository;
 
-import com.gridhub.gridhub.domain.f1data.entity.Prediction;
+import com.gridhub.gridhub.domain.prediction.entity.Prediction;
 import com.gridhub.gridhub.domain.f1data.entity.Race;
 import com.gridhub.gridhub.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
