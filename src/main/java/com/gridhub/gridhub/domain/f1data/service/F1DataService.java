@@ -1,13 +1,17 @@
 package com.gridhub.gridhub.domain.f1data.service;
 
+import com.gridhub.gridhub.domain.f1data.dto.DriverInfoResponse;
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
 import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
+import com.gridhub.gridhub.domain.f1data.dto.TeamInfoResponse;
 import com.gridhub.gridhub.domain.f1data.entity.Race;
 import com.gridhub.gridhub.domain.f1data.entity.RaceResult;
 import com.gridhub.gridhub.domain.f1data.exception.RaceNotFoundException;
 import com.gridhub.gridhub.domain.f1data.exception.RaceResultNotFoundException;
+import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
 import com.gridhub.gridhub.domain.f1data.repository.RaceResultRepository;
+import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +26,8 @@ public class F1DataService {
 
     private final RaceRepository raceRepository;
     private final RaceResultRepository raceResultRepository;
+    private final DriverRepository driverRepository;
+    private final TeamRepository teamRepository;
 
     @Transactional(readOnly = true)
     public List<RaceCalendarDto> getRaceCalendarByYear(int year) {
@@ -51,5 +57,19 @@ public class F1DataService {
 
         // 3. 두 엔티티를 조합하여 최종 응답 dto 생성
         return RaceDetailResponse.of(race, result);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DriverInfoResponse> getAllDrivers() {
+        return driverRepository.findAll().stream()
+                .map(DriverInfoResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamInfoResponse> getAllTeams() {
+        return teamRepository.findAllWithDrivers().stream()
+                .map(TeamInfoResponse::from)
+                .collect(Collectors.toList());
     }
 }
