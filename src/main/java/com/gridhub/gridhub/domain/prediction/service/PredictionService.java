@@ -29,7 +29,7 @@ public class PredictionService {
     private final PredictionRepository predictionRepository;
     private final UserRepository userRepository;
     private final RaceRepository raceRepository;
-    private DriverRepository driverRepository;
+    private final DriverRepository driverRepository;
 
     @Transactional
     public void createPrediction(Long raceId, PredictionRequest request, String userEmail) {
