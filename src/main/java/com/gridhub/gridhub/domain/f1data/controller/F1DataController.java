@@ -1,7 +1,9 @@
 package com.gridhub.gridhub.domain.f1data.controller;
 
+import com.gridhub.gridhub.domain.f1data.dto.DriverInfoResponse;
 import com.gridhub.gridhub.domain.f1data.dto.RaceCalendarDto;
 import com.gridhub.gridhub.domain.f1data.dto.RaceDetailResponse;
+import com.gridhub.gridhub.domain.f1data.dto.TeamInfoResponse;
 import com.gridhub.gridhub.domain.f1data.service.F1DataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,5 +36,17 @@ public class F1DataController {
     public ResponseEntity<RaceDetailResponse> getRaceDetail(@PathVariable Long raceId) {
         RaceDetailResponse raceDetail = f1DataService.getRaceDetail(raceId);
         return ResponseEntity.ok(raceDetail);
+    }
+
+    @GetMapping("/drivers")
+    public ResponseEntity<List<DriverInfoResponse>> getAllDrivers() {
+        List<DriverInfoResponse> drivers = f1DataService.getAllDrivers();
+        return ResponseEntity.ok(drivers);
+    }
+
+    @GetMapping("/teams")
+    public ResponseEntity<List<TeamInfoResponse>> getAllTeams() {
+        List<TeamInfoResponse> teams = f1DataService.getAllTeams();
+        return ResponseEntity.ok(teams);
     }
 }
