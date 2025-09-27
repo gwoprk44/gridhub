@@ -17,6 +17,4 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
     // 특정 레이스에 대한 모든 예측 목록을 조회 (사용자 정보와 함께)
     @Query("SELECT p FROM Prediction p JOIN FETCH p.user WHERE p.race = :race")
     List<Prediction> findAllByRaceWithUser(@Param("race") Race race);
-
-    
 }
