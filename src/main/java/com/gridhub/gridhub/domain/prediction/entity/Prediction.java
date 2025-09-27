@@ -55,6 +55,12 @@ public class Prediction extends BaseTimeEntity {
     @Column(nullable = false)
     private int earnedPoints = 0; // 획득한 포인트
 
+    // 채점 결과 업데이트 메서드
+    public void updateResult(boolean isCorrect, int points) {
+        this.isCorrect = isCorrect;
+        this.earnedPoints = points;
+    }
+
     @Builder
     public Prediction(User user, Race race, Driver predictedP1, Driver predictedP2, Driver predictedP3) {
         this.user = user;

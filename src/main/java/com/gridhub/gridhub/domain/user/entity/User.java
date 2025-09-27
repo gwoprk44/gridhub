@@ -42,6 +42,11 @@ public class User extends BaseTimeEntity {
     private Long favoriteDriverId;
     private Long favoriteTeamId;
 
+    // 포인트 추가 메서드
+    public void addPoints(int points) {
+        this.points += points;
+    }
+
     @Builder
     public User(String email, String password, String nickname, UserRole role) {
         this.email = email;
