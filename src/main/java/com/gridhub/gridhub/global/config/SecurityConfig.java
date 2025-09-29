@@ -48,7 +48,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                         // 2. 비로그인 사용자도 조회(GET)는 가능하도록 허용할 경로
-                        .requestMatchers(HttpMethod.GET, "/api/posts/**", "/api/comments/**", "/api/f1-data/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/posts/**", "/api/comments/**", "/api/f1-data/**", "/api/predictions/leaderboard").permitAll()
 
                         // 3. 관리자(ADMIN) 역할만 접근 가능한 경로
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
