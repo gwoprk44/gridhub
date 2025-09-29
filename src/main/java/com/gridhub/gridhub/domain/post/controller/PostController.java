@@ -1,6 +1,7 @@
 package com.gridhub.gridhub.domain.post.controller;
 
 import com.gridhub.gridhub.domain.post.dto.*;
+import com.gridhub.gridhub.domain.post.entity.PostCategory;
 import com.gridhub.gridhub.domain.post.service.PostService;
 import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.servlet.http.Cookie;
@@ -67,11 +68,11 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<Page<PostSimpleResponse>> getPostList(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
-            Pageable pageable
-    ) {
-        Page<PostSimpleResponse> postList = postService.getPostList(pageable);
-        return ResponseEntity.ok(postList);
+            @RequestParam(required = false)PostCategory category,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            ) {
+            Page<PostSimpleResponse> postList = postService.getPostList(category, pageable);
+            return ResponseEntity.ok(postList);
     }
 
     @PutMapping("/{postId}")
