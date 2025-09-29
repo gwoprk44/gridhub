@@ -8,7 +8,7 @@ import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
 import com.gridhub.gridhub.domain.prediction.entity.Prediction;
 import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
-import com.gridhub.gridhub.domain.user.entity.UserRole; // \u003c\u003c\u003c UserRole import 추가
+import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.infra.external.OpenF1Client;
 import org.junit.jupiter.api.BeforeEach;
