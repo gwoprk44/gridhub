@@ -5,6 +5,7 @@ import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
+import com.gridhub.gridhub.domain.post.entity.PostCategory;
 import com.gridhub.gridhub.domain.post.entity.PostLike;
 import com.gridhub.gridhub.domain.post.exception.*;
 import com.gridhub.gridhub.domain.post.repository.PostLikeRepository;
@@ -72,11 +73,19 @@ public class PostService {
 
     // 게시글 목록 조회
     @Transactional(readOnly = true)
-    public Page<PostSimpleResponse> getPostList(Pageable pageable) {
-        // 1. 페이징된 post 엔티티 목록 조회
-        Page<Post> posts = postRepository.findAll(pageable);
+    public Page<PostSimpleResponse> getPostList(PostCategory category, Pageable pageable) {
+        Page<Post> posts;
 
-        // 2. page<post>를 dto로 변환
+        // 1. 카테고리 파라미터가 있는지 확인
+        if (category != null) {
+            // 카테고리가 있으면, 해당 카테고리의 게시글만 조회
+            posts = postRepository.findByCategory(category, pageable);
+        } else {
+            // 카테고리가 없으면, 모든 게시글 조회
+            posts = postRepository.findAll(pageable);
+        }
+
+        // 2. 조회된 Page<Post>를 Page<PostSimpleResponse>로 변환
         return posts.map(PostSimpleResponse::from);
     }
 
