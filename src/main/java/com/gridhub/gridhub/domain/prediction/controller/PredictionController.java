@@ -1,11 +1,15 @@
 package com.gridhub.gridhub.domain.prediction.controller;
 
+import com.gridhub.gridhub.domain.prediction.dto.LeaderboardResponse;
 import com.gridhub.gridhub.domain.prediction.dto.PredictionRequest;
 import com.gridhub.gridhub.domain.prediction.dto.PredictionResponse;
 import com.gridhub.gridhub.domain.prediction.service.PredictionService;
 import com.gridhub.gridhub.global.security.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,5 +44,13 @@ public class PredictionController {
         }
 
         return ResponseEntity.ok(myPrediction);
+    }
+
+    @GetMapping("/leaderboard")
+    public ResponseEntity<Page<LeaderboardResponse>> getLeaderboard(
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        Page<LeaderboardResponse> leaderboard = predictionService.getLeaderboard(pageable);
+        return ResponseEntity.ok(leaderboard);
     }
 }
