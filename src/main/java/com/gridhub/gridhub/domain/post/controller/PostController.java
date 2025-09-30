@@ -14,10 +14,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 @RestController
@@ -29,19 +32,15 @@ public class PostController {
     private static final String VIEW_COOKIE_NAME = "post_view";
     private static final int COOKIE_MAX_AGE = 60 * 60 * 24; // 24시간
 
-    @PostMapping
+    @PostMapping(consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<PostIdResponse> createPost(
-            @Valid @RequestBody PostCreateRequest request,
+            @RequestPart("request") @Valid PostRequestDto requestDto,
+            @RequestPart(value = "image", required = false) MultipartFile image,
             @AuthenticationPrincipal UserDetailsImpl userDetails
-    ) {
-        // @AuthenticationPrincipal을 통해 현재 인증된 사용자의 정보를 가져옴
+    ) throws IOException {
         String currentUserEmail = userDetails.getUsername();
-
-        Long postId = postService.createPost(request, currentUserEmail);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(new PostIdResponse(postId));
+        Long postId = postService.createPost(requestDto, image, currentUserEmail);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new PostIdResponse(postId));
     }
 
     @GetMapping("/{postId}")
@@ -77,16 +76,16 @@ public class PostController {
         return ResponseEntity.ok(postList);
     }
 
-    @PutMapping("/{postId}")
+    @PutMapping(value = "/{postId}", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<Void> updatePost(
             @PathVariable Long postId,
-            @Valid @RequestBody PostUpdateRequest request,
+            @RequestPart("request") @Valid PostUpdateRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile newImage,
             @AuthenticationPrincipal UserDetailsImpl userDetails
-    ) {
+    ) throws IOException {
         String currentUserEmail = userDetails.getUsername();
-        postService.updatePost(postId, request, currentUserEmail);
-
-        return ResponseEntity.ok().build(); // 성공시 200 OK와 빈 BODY 응답.
+        postService.updatePost(postId, request, newImage, currentUserEmail);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{postId}")

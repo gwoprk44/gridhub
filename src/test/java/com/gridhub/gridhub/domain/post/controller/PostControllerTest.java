@@ -1,7 +1,7 @@
 package com.gridhub.gridhub.domain.post.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
+import com.gridhub.gridhub.domain.post.dto.PostRequestDto;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.entity.PostCategory;
@@ -77,7 +77,7 @@ public class PostControllerTest {
     @DisplayName("게시글 작성 성공")
     @Test
     void createPost_Success() throws Exception {
-        PostCreateRequest request = new PostCreateRequest("title", "content", PostCategory.INFO);
+        PostRequestDto request = new PostRequestDto("title", "content", PostCategory.INFO);
 
         mockMvc.perform(post("/api/posts")
                         .header("Authorization", authorToken)

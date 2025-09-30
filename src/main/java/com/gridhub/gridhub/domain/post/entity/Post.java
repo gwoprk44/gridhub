@@ -41,6 +41,8 @@ public class Post extends BaseTimeEntity {
     @Column(nullable = false)
     private int likeCount = 0;
 
+    private String imageUrl;
+
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PostLike> likes = new HashSet<>();
 
@@ -52,19 +54,21 @@ public class Post extends BaseTimeEntity {
     private List<Comment> comments = new ArrayList<>();
 
     @Builder
-    public Post(String title, String content, PostCategory category, User author) {
+    public Post(String title, String content, PostCategory category, User author, String imageUrl) {
         this.title = title;
         this.content = content;
         this.category = category;
         this.author = author;
+        this.imageUrl = imageUrl;
     }
 
     /*
     * 게시글 수정 메서드
     * */
-    public void update(String title, String content) {
+    public void update(String title, String content, String imageUrl) {
         this.title = title;
         this.content = content;
+        this.imageUrl = imageUrl;
     }
 
     /**

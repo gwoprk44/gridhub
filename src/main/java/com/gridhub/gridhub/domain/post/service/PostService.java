@@ -1,6 +1,6 @@
 package com.gridhub.gridhub.domain.post.service;
 
-import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
+import com.gridhub.gridhub.domain.post.dto.PostRequestDto;
 import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostSimpleResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
@@ -14,11 +14,15 @@ import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.infra.s3.S3UploaderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
@@ -27,23 +31,22 @@ public class PostService {
     private final PostRepository postRepository;
     private final UserRepository userRepository; // 작성자 정보 호출용
     private final PostLikeRepository postLikeRepository; // 게시글 추천
+    private final S3UploaderService s3UploaderService;
 
     /*
     * 게시글 생성
     * */
     @Transactional
-    public Long createPost(PostCreateRequest request, String userEmail) {
-        // 1. 요청된 이메일로 사용자 정보 조회
-        User author = userRepository.findByEmail(userEmail)
-                .orElseThrow(UserNotFoundException::new);
+    public Long createPost(PostRequestDto requestDto, MultipartFile image, String userEmail) throws IOException {
+        User author = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
 
-        // 2. DTO를 엔티티로 변환
-        Post newPost = request.toEntity(author);
+        String imageUrl = null;
+        if (image != null && !image.isEmpty()) {
+            imageUrl = s3UploaderService.upload(image);
+        }
 
-        // 3. DB에 저장
+        Post newPost = requestDto.toEntity(author, imageUrl);
         Post savedPost = postRepository.save(newPost);
-
-        // 4. 저장된 게시글의 ID 반환
         return savedPost.getId();
     }
 
@@ -115,22 +118,25 @@ public class PostService {
     * 게시글 수정
     * */
     @Transactional
-    public void updatePost(Long postId, PostUpdateRequest request, String userEmail) {
-        // 1. 현재 요청을 보낸 사용자 정보 조회
-        User currentUser = userRepository.findByEmail(userEmail)
-                .orElseThrow(UserNotFoundException::new);
+    public void updatePost(Long postId, PostUpdateRequest request, MultipartFile newImage, String userEmail) throws IOException {
+        User currentUser = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+        Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
 
-        // 2. 수정할 게시글 조회
-        Post post = postRepository.findById(postId)
-                .orElseThrow(PostNotFoundException::new);
-
-        // 3. 권한 검사
         if (!post.getAuthor().getId().equals(currentUser.getId())) {
             throw new PostUpdateForbiddenException();
         }
 
-        // 4. 게시글 수정
-        post.update(request.title(), request.content());
+        String newImageUrl = post.getImageUrl(); // 기본적으로 기존 이미지 유지
+        if (newImage != null && !newImage.isEmpty()) {
+            // 새 이미지가 있으면 기존 이미지 S3에서 삭제
+            if (post.getImageUrl() != null) {
+                s3UploaderService.delete(post.getImageUrl());
+            }
+            // 새 이미지 S3에 업로드
+            newImageUrl = s3UploaderService.upload(newImage);
+        }
+
+        post.update(request.title(), request.content(), newImageUrl);
     }
 
     /*
@@ -138,18 +144,16 @@ public class PostService {
     * */
     @Transactional
     public void deletePost(Long postId, String userEmail) {
-        // 1. 현재 요청을 보낸 사용자 정보 조회
-        User currentUser = userRepository.findByEmail(userEmail)
-                .orElseThrow(UserNotFoundException::new);
+        User currentUser = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
+        Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
 
-        // 2. 삭제할 게시글 조회
-        Post post = postRepository.findById(postId)
-                .orElseThrow(PostNotFoundException::new);
-
-        // 3. 권한 검사
         validatePostAuthorOrAdmin(post, currentUser);
 
-        // 4. 게시글 삭제
+        // S3에 이미지가 있다면 삭제
+        if (post.getImageUrl() != null) {
+            s3UploaderService.delete(post.getImageUrl());
+        }
+
         postRepository.delete(post);
     }
 

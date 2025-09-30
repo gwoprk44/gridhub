@@ -1,6 +1,6 @@
 package com.gridhub.gridhub.domain.post.service;
 
-import com.gridhub.gridhub.domain.post.dto.PostCreateRequest;
+import com.gridhub.gridhub.domain.post.dto.PostRequestDto;
 import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
@@ -20,12 +20,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +69,7 @@ class PostServiceTest {
     @Test
     void createPost_Success() {
         // given
-        PostCreateRequest request = new PostCreateRequest("title", "content", PostCategory.FREE);
+        PostRequestDto request = new PostRequestDto("title", "content", PostCategory.FREE);
         given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
         given(postRepository.save(any(Post.class))).willReturn(post);
 

@@ -13,6 +13,7 @@ public record PostResponse(
         PostCategory category,
         int viewCount,
         int likeCount,
+        String imageUrl,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -26,6 +27,7 @@ public record PostResponse(
                 post.getCategory(),
                 post.getViewCount(),
                 post.getLikeCount(),
+                post.getImageUrl(),
                 post.getCreatedAt(),
                 post.getUpdatedAt()
         );

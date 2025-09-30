@@ -11,6 +11,7 @@ public record PostSimpleResponse(
         String authorNickname,
         PostCategory category,
         int viewCount,
+        String imageUrl,
         LocalDateTime createdAt
 ) {
     public static  PostSimpleResponse from(Post post) {
@@ -20,6 +21,7 @@ public record PostSimpleResponse(
                 post.getAuthor().getNickname(),
                 post.getCategory(),
                 post.getViewCount(),
+                post.getImageUrl(),
                 post.getCreatedAt()
         );
     }
