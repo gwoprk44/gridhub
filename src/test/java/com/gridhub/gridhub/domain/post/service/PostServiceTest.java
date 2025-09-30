@@ -19,8 +19,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -241,5 +246,56 @@ class PostServiceTest {
 
         // when & then
         assertThrows(LikeNotFoundException.class, () -> postService.removeLike(post.getId(), author.getEmail()));
+    }
+
+    @DisplayName("게시글 목록 조회 (카테고리 필터링) - 단위 테스트")
+    @Test
+    void getPostList_WithCategory_ShouldCallFindByCategory() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+        PostCategory category = PostCategory.INFO;
+
+        // Mock 데이터 및 Repository 설정
+        List<Post> postList = List.of(
+                Post.builder().category(category).author(author).build(),
+                Post.builder().category(category).author(author).build()
+        );
+        Page<Post> postPage = new PageImpl<>(postList, pageable, postList.size());
+
+        given(postRepository.findByCategory(category, pageable)).willReturn(postPage);
+
+        // when
+        postService.getPostList(category, pageable);
+
+        // then
+        // findByCategory 메서드가 정확한 인자로 호출되었는지 검증
+        verify(postRepository, times(1)).findByCategory(category, pageable);
+        // findAll 메서드는 호출되지 않았는지 검증
+        verify(postRepository, never()).findAll(pageable);
+    }
+
+    @DisplayName("게시글 목록 조회 (전체) - 단위 테스트")
+    @Test
+    void getPostList_WithoutCategory_ShouldCallFindAll() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+
+        List<Post> postList = List.of(
+                Post.builder().category(PostCategory.INFO).author(author).build(),
+                Post.builder().category(PostCategory.FREE).author(author).build()
+        );
+        Page<Post> postPage = new PageImpl<>(postList, pageable, postList.size());
+
+        given(postRepository.findAll(pageable)).willReturn(postPage);
+
+        // when
+        // category를 null로 전달하여 전체 조회를 테스트
+        postService.getPostList(null, pageable);
+
+        // then
+        // findAll 메서드가 호출되었는지 검증
+        verify(postRepository, times(1)).findAll(pageable);
+        // findByCategory 메서드는 호출되지 않았는지 검증
+        verify(postRepository, never()).findByCategory(any(), any());
     }
 }
