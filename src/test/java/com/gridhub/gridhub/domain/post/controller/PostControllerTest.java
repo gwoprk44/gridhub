@@ -58,8 +58,8 @@ public class PostControllerTest {
         postRepository.deleteAllInBatch();
 
         // 사용자 생성
-        author = userRepository.save(User.builder().email("author@test.com").password("encoded").nickname("author").role(UserRole.USER).build());
-        User anotherUser = userRepository.save(User.builder().email("another@test.com").password("encoded").nickname("another").role(UserRole.USER).build());
+        author = userRepository.save(User.builder().email("author@test.com").password("encoded").nickname("author-geonoo").role(UserRole.USER).build());
+        User anotherUser = userRepository.save(User.builder().email("another@test.com").password("encoded").nickname("another-user").role(UserRole.USER).build());
         User admin = userRepository.save(User.builder().email("admin@test.com").password("encoded").nickname("admin").role(UserRole.ADMIN).build());
 
         // 토큰 발급
@@ -68,10 +68,10 @@ public class PostControllerTest {
         adminToken = jwtUtil.createToken(admin.getEmail(), admin.getRole());
 
         // 테스트용 게시글 생성
-        testPost = postRepository.save(Post.builder().title("Free Post by author").content("test content").author(author).category(PostCategory.FREE).build());
-        postRepository.save(Post.builder().title("Info Post 1").content("content").author(author).category(PostCategory.INFO).build());
-        postRepository.save(Post.builder().title("Info Post 2").content("content").author(anotherUser).category(PostCategory.INFO).build());
-        postRepository.save(Post.builder().title("Rumor Post 1").content("content").author(anotherUser).category(PostCategory.RUMOR).build());
+        testPost = postRepository.save(Post.builder().title("JPA Basics").content("About JPA").author(author).category(PostCategory.INFO).build());
+        postRepository.save(Post.builder().title("Spring Security").content("About Security").author(author).category(PostCategory.INFO).build());
+        postRepository.save(Post.builder().title("Free talk").content("Any content").author(anotherUser).category(PostCategory.FREE).build());
+        postRepository.save(Post.builder().title("Rumor about Spring").content("Rumor content").author(anotherUser).category(PostCategory.RUMOR).build());
     }
 
     @DisplayName("게시글 작성 성공")
@@ -95,7 +95,7 @@ public class PostControllerTest {
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
-                .andExpect(jsonPath("$.totalElements").value(4)) // setUp에서 만든 총 게시글 수
+                .andExpect(jsonPath("$.totalElements").value(4))
                 .andDo(print());
     }
 
@@ -121,13 +121,58 @@ public class PostControllerTest {
                 .andDo(print());
     }
 
+    @DisplayName("GET /api/posts - 제목으로 검색")
+    @Test
+    void getPostList_SearchByTitle() throws Exception {
+        mockMvc.perform(get("/api/posts")
+                        .param("searchType", "title")
+                        .param("keyword", "JPA"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("JPA Basics"));
+    }
+
+    @DisplayName("GET /api/posts - 내용으로 검색")
+    @Test
+    void getPostList_SearchByContent() throws Exception {
+        mockMvc.perform(get("/api/posts")
+                        .param("searchType", "content")
+                        .param("keyword", "Security"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Spring Security"));
+    }
+
+    @DisplayName("GET /api/posts - 작성자 닉네임으로 검색")
+    @Test
+    void getPostList_SearchByNickname() throws Exception {
+        mockMvc.perform(get("/api/posts")
+                        .param("searchType", "nickname")
+                        .param("keyword", "geonoo")) // 'author-geonoo'의 일부
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content.[*].authorNickname", everyItem(is("author-geonoo"))));
+    }
+
+    @DisplayName("GET /api/posts - 카테고리와 제목으로 동시 검색")
+    @Test
+    void getPostList_SearchWithCategoryAndTitle() throws Exception {
+        mockMvc.perform(get("/api/posts")
+                        .param("category", "RUMOR")
+                        .param("searchType", "title")
+                        .param("keyword", "Spring"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Rumor about Spring"));
+    }
+
     @DisplayName("게시글 수정 실패 - 다른 사용자가 수정 시도")
     @Test
     void updatePost_Fail_Forbidden() throws Exception {
         PostUpdateRequest updateRequest = new PostUpdateRequest("updated title", "updated content");
 
         mockMvc.perform(put("/api/posts/" + testPost.getId())
-                        .header("Authorization", anotherUserToken) // author가 아닌 anotherUser의 토큰 사용
+                        .header("Authorization", anotherUserToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isForbidden())
@@ -139,7 +184,7 @@ public class PostControllerTest {
     @Test
     void deletePost_Success_ByAdmin() throws Exception {
         mockMvc.perform(delete("/api/posts/" + testPost.getId())
-                        .header("Authorization", adminToken)) // 관리자 토큰 사용
+                        .header("Authorization", adminToken))
                 .andExpect(status().isNoContent())
                 .andDo(print());
     }
@@ -150,7 +195,6 @@ public class PostControllerTest {
         MvcResult result = mockMvc.perform(get("/api/posts/" + testPost.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.viewCount").value(1))
-                .andDo(print())
                 .andReturn();
 
         Cookie viewCookie = result.getResponse().getCookie("post_view");

@@ -248,54 +248,92 @@ class PostServiceTest {
         assertThrows(LikeNotFoundException.class, () -> postService.removeLike(post.getId(), author.getEmail()));
     }
 
-    @DisplayName("게시글 목록 조회 (카테고리 필터링) - 단위 테스트")
+    @DisplayName("게시글 목록 조회 - 검색 조건이 없을 때")
     @Test
-    void getPostList_WithCategory_ShouldCallFindByCategory() {
+    void getPostList_NoSearch() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
-        PostCategory category = PostCategory.INFO;
 
-        // Mock 데이터 및 Repository 설정
-        List<Post> postList = List.of(
-                Post.builder().category(category).author(author).build(),
-                Post.builder().category(category).author(author).build()
-        );
-        Page<Post> postPage = new PageImpl<>(postList, pageable, postList.size());
+        // 1. 카테고리만 있는 경우
+        given(postRepository.findByCategory(PostCategory.INFO, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(PostCategory.INFO, null, null, pageable);
+        verify(postRepository).findByCategory(PostCategory.INFO, pageable);
 
-        given(postRepository.findByCategory(category, pageable)).willReturn(postPage);
-
-        // when
-        postService.getPostList(category, pageable);
-
-        // then
-        // findByCategory 메서드가 정확한 인자로 호출되었는지 검증
-        verify(postRepository, times(1)).findByCategory(category, pageable);
-        // findAll 메서드는 호출되지 않았는지 검증
-        verify(postRepository, never()).findAll(pageable);
+        // 2. 아무 조건도 없는 경우
+        given(postRepository.findAll(pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(null, null, null, pageable);
+        verify(postRepository).findAll(pageable);
     }
 
-    @DisplayName("게시글 목록 조회 (전체) - 단위 테스트")
+    @DisplayName("게시글 목록 조회 - 제목으로 검색")
     @Test
-    void getPostList_WithoutCategory_ShouldCallFindAll() {
+    void getPostList_SearchByTitle() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
+        String keyword = "Test";
 
-        List<Post> postList = List.of(
-                Post.builder().category(PostCategory.INFO).author(author).build(),
-                Post.builder().category(PostCategory.FREE).author(author).build()
-        );
-        Page<Post> postPage = new PageImpl<>(postList, pageable, postList.size());
+        // 1. 카테고리 O, 제목 검색 O
+        given(postRepository.findByCategoryAndTitleContaining(PostCategory.INFO, keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(PostCategory.INFO, "title", keyword, pageable);
+        verify(postRepository).findByCategoryAndTitleContaining(PostCategory.INFO, keyword, pageable);
 
-        given(postRepository.findAll(pageable)).willReturn(postPage);
+        // 2. 카테고리 X, 제목 검색 O
+        given(postRepository.findByTitleContaining(keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(null, "title", keyword, pageable);
+        verify(postRepository).findByTitleContaining(keyword, pageable);
+    }
 
-        // when
-        // category를 null로 전달하여 전체 조회를 테스트
-        postService.getPostList(null, pageable);
+    @DisplayName("게시글 목록 조회 - 내용으로 검색")
+    @Test
+    void getPostList_SearchByContent() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+        String keyword = "Test";
 
-        // then
-        // findAll 메서드가 호출되었는지 검증
-        verify(postRepository, times(1)).findAll(pageable);
-        // findByCategory 메서드는 호출되지 않았는지 검증
-        verify(postRepository, never()).findByCategory(any(), any());
+        // 1. 카테고리 O, 내용 검색 O
+        given(postRepository.findByCategoryAndContentContaining(PostCategory.INFO, keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(PostCategory.INFO, "content", keyword, pageable);
+        verify(postRepository).findByCategoryAndContentContaining(PostCategory.INFO, keyword, pageable);
+
+        // 2. 카테고리 X, 내용 검색 O
+        given(postRepository.findByContentContaining(keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(null, "content", keyword, pageable);
+        verify(postRepository).findByContentContaining(keyword, pageable);
+    }
+
+    @DisplayName("게시글 목록 조회 - 작성자 닉네임으로 검색")
+    @Test
+    void getPostList_SearchByNickname() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+        String keyword = "Test";
+
+        // 1. 카테고리 O, 닉네임 검색 O
+        given(postRepository.findByCategoryAndAuthor_NicknameContaining(PostCategory.INFO, keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(PostCategory.INFO, "nickname", keyword, pageable);
+        verify(postRepository).findByCategoryAndAuthor_NicknameContaining(PostCategory.INFO, keyword, pageable);
+
+        // 2. 카테고리 X, 닉네임 검색 O
+        given(postRepository.findByAuthor_NicknameContaining(keyword, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(null, "nickname", keyword, pageable);
+        verify(postRepository).findByAuthor_NicknameContaining(keyword, pageable);
+    }
+
+    @DisplayName("게시글 목록 조회 - 유효하지 않은 검색 타입일 경우")
+    @Test
+    void getPostList_InvalidSearchType() {
+        // given
+        Pageable pageable = PageRequest.of(0, 10);
+        String keyword = "Test";
+
+        // 1. 카테고리 O, 잘못된 검색 타입
+        given(postRepository.findByCategory(PostCategory.INFO, pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(PostCategory.INFO, "invalidType", keyword, pageable);
+        verify(postRepository).findByCategory(PostCategory.INFO, pageable);
+
+        // 2. 카테고리 X, 잘못된 검색 타입
+        given(postRepository.findAll(pageable)).willReturn(Page.empty()); // given 추가
+        postService.getPostList(null, "invalidType", keyword, pageable);
+        verify(postRepository).findAll(pageable);
     }
 }
