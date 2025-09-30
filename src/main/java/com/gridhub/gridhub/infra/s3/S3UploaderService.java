@@ -26,7 +26,7 @@ public class S3UploaderService {
     private final String s3Dir = "images"; // S3 버킷 내에 이미지를 저장할 디렉토리 이름
 
     /**
-     * MultipartFile을 S3에 업로드하고, 업로드된 파일의 URL을 반환합니다.
+     * MultipartFile을 S3에 업로드하고, 업로드된 파일의 URL을 반환.
      *
      * @param multipartFile 업로드할 파일
      * @return 업로드된 파일의 S3 URL
@@ -106,7 +106,7 @@ public class S3UploaderService {
     // 전체 URL에서 객체 키(e.g., images/uuid-filename.jpg)를 추출하는 헬퍼 메서드
     private String getKeyFromUrl(String fileUrl) {
         // S3 URL 형식: https://<bucket-name>.s3.<region>.amazonaws.com/<key>
-        // 이 구조를 기반으로 key를 파싱합니다.
+        // 이 구조를 기반으로 key를 파싱.
         String baseUrl = "https://"+ bucketName + ".s3.";
         if (fileUrl.contains(baseUrl)) {
             return fileUrl.substring(fileUrl.indexOf(s3Dir));
