@@ -68,11 +68,13 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<Page<PostSimpleResponse>> getPostList(
-            @RequestParam(required = false)PostCategory category,
+            @RequestParam(required = false) PostCategory category,
+            @RequestParam(required = false) String searchType,
+            @RequestParam(required = false) String keyword,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-            ) {
-            Page<PostSimpleResponse> postList = postService.getPostList(category, pageable);
-            return ResponseEntity.ok(postList);
+    ) {
+        Page<PostSimpleResponse> postList = postService.getPostList(category, searchType, keyword, pageable);
+        return ResponseEntity.ok(postList);
     }
 
     @PutMapping("/{postId}")

@@ -73,19 +73,41 @@ public class PostService {
 
     // 게시글 목록 조회
     @Transactional(readOnly = true)
-    public Page<PostSimpleResponse> getPostList(PostCategory category, Pageable pageable) {
-        Page<Post> posts;
-
-        // 1. 카테고리 파라미터가 있는지 확인
-        if (category != null) {
-            // 카테고리가 있으면, 해당 카테고리의 게시글만 조회
-            posts = postRepository.findByCategory(category, pageable);
-        } else {
-            // 카테고리가 없으면, 모든 게시글 조회
-            posts = postRepository.findAll(pageable);
+    public Page<PostSimpleResponse> getPostList(
+            PostCategory category,
+            String searchType,
+            String keyword,
+            Pageable pageable
+    ) {
+        // 검색어가 없으면 기존 로직(카테고리 필터링 또는 전체 조회) 수행
+        if (keyword == null || keyword.isBlank()) {
+            if (category != null) {
+                return postRepository.findByCategory(category, pageable).map(PostSimpleResponse::from);
+            } else {
+                return postRepository.findAll(pageable).map(PostSimpleResponse::from);
+            }
         }
 
-        // 2. 조회된 Page<Post>를 Page<PostSimpleResponse>로 변환
+        // 검색어가 있으면, searchType에 따라 분기
+        Page<Post> posts;
+        if (category != null) {
+            // 카테고리 필터링이 있는 경우
+            posts = switch (searchType) {
+                case "title" -> postRepository.findByCategoryAndTitleContaining(category, keyword, pageable);
+                case "content" -> postRepository.findByCategoryAndContentContaining(category, keyword, pageable);
+                case "nickname" -> postRepository.findByCategoryAndAuthor_NicknameContaining(category, keyword, pageable);
+                default -> postRepository.findByCategory(category, pageable); // 유효하지 않은 searchType이면 카테고리 필터링만 적용
+            };
+        } else {
+            // 카테고리 필터링이 없는 경우
+            posts = switch (searchType) {
+                case "title" -> postRepository.findByTitleContaining(keyword, pageable);
+                case "content" -> postRepository.findByContentContaining(keyword, pageable);
+                case "nickname" -> postRepository.findByAuthor_NicknameContaining(keyword, pageable);
+                default -> postRepository.findAll(pageable); // 유효하지 않은 searchType이면 전체 조회
+            };
+        }
+
         return posts.map(PostSimpleResponse::from);
     }
 
