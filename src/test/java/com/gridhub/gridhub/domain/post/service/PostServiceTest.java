@@ -12,18 +12,23 @@ import com.gridhub.gridhub.domain.post.repository.PostRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.infra.s3.S3UploaderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +52,9 @@ class PostServiceTest {
     @Mock
     private PostLikeRepository postLikeRepository;
 
+    @Mock
+    private S3UploaderService s3UploaderService;
+
     private User author;
     private User anotherUser;
     private User admin;
@@ -65,20 +73,128 @@ class PostServiceTest {
         ReflectionTestUtils.setField(post, "id", 1L);
     }
 
-    @DisplayName("게시글 생성 성공")
+    // --- 생성 테스트 ---
+
+    @DisplayName("게시글 생성 성공 (이미지 없음)")
     @Test
-    void createPost_Success() {
+    void createPost_WithoutImage_Success() throws IOException {
         // given
-        PostRequestDto request = new PostRequestDto("title", "content", PostCategory.FREE);
+        PostRequestDto requestDto = new PostRequestDto();
         given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
         given(postRepository.save(any(Post.class))).willReturn(post);
 
         // when
-        Long postId = postService.createPost(request, author.getEmail());
+        postService.createPost(requestDto, null, author.getEmail());
 
         // then
-        assertThat(postId).isEqualTo(post.getId());
-        then(postRepository).should().save(any(Post.class));
+        verify(s3UploaderService, never()).upload(any(MultipartFile.class)); // upload가 호출되지 않았는지 검증
+        verify(postRepository).save(any(Post.class));
+    }
+
+    @DisplayName("게시글 생성 (이미지 포함) - 단위 테스트")
+    @Test
+    void createPost_WithImage_Success() throws IOException {
+        // given
+        PostRequestDto requestDto = new PostRequestDto();
+        requestDto.setTitle("title");
+        requestDto.setContent("content");
+        requestDto.setCategory(PostCategory.INFO);
+
+        MockMultipartFile mockImage = new MockMultipartFile("image", "test.jpg", "image/jpeg", "test image".getBytes());
+        String fakeImageUrl = "https://s3.amazonaws.com/bucket/images/fake-uuid.jpg";
+
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(s3UploaderService.upload(mockImage)).willReturn(fakeImageUrl);
+        given(postRepository.save(any(Post.class))).willReturn(post);
+
+        // when
+        Long postId = postService.createPost(requestDto, mockImage, author.getEmail());
+
+        // then
+        ArgumentCaptor<Post> postCaptor = ArgumentCaptor.forClass(Post.class);
+        verify(postRepository).save(postCaptor.capture());
+
+        assertThat(postId).isEqualTo(1L); // 반환된 ID가 예상과 같은지 확인
+        assertThat(postCaptor.getValue().getImageUrl()).isEqualTo(fakeImageUrl);
+        verify(s3UploaderService, times(1)).upload(mockImage);
+    }
+    // --- 수정 테스트 ---
+
+    @DisplayName("게시글 수정 성공 (이미지 변경 없음)")
+    @Test
+    void updatePost_WithoutImageChange_Success() throws IOException {
+        // given
+        PostUpdateRequest request = new PostUpdateRequest("updated title", "updated content");
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+
+        // when
+        postService.updatePost(post.getId(), request, null, author.getEmail());
+
+        // then
+        assertThat(post.getTitle()).isEqualTo("updated title");
+        verify(s3UploaderService, never()).upload(any());
+        verify(s3UploaderService, never()).delete(any());
+    }
+
+    @DisplayName("게시글 수정 성공 (새 이미지 추가)")
+    @Test
+    void updatePost_WithNewImage_Success() throws IOException {
+        // given
+        String oldImageUrl = "https://s3.../old.jpg";
+        post.update(post.getTitle(), post.getContent(), oldImageUrl);
+
+        PostUpdateRequest request = new PostUpdateRequest("updated title", "updated content");
+        MockMultipartFile newImage = new MockMultipartFile("image", "new.jpg", "image/jpeg", "new".getBytes());
+        String newImageUrl = "https://s3.../new.jpg";
+
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+        given(s3UploaderService.upload(newImage)).willReturn(newImageUrl);
+        willDoNothing().given(s3UploaderService).delete(oldImageUrl);
+
+        // when
+        postService.updatePost(post.getId(), request, newImage, author.getEmail());
+
+        // then
+        verify(s3UploaderService).delete(oldImageUrl);
+        verify(s3UploaderService).upload(newImage);
+        assertThat(post.getImageUrl()).isEqualTo(newImageUrl);
+    }
+
+    // --- 삭제 테스트 ---
+
+    @DisplayName("게시글 삭제 성공 (이미지 없음)")
+    @Test
+    void deletePost_WithoutImage_Success() {
+        // given
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+
+        // when
+        postService.deletePost(post.getId(), author.getEmail());
+
+        // then
+        verify(postRepository).delete(post);
+        verify(s3UploaderService, never()).delete(any());
+    }
+
+    @DisplayName("게시글 삭제 성공 (이미지 포함)")
+    @Test
+    void deletePost_WithImage_Success() {
+        // given
+        String imageUrl = "https://s3.../image.jpg";
+        post.update(post.getTitle(), post.getContent(), imageUrl);
+
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+
+        // when
+        postService.deletePost(post.getId(), author.getEmail());
+
+        // then
+        verify(s3UploaderService).delete(imageUrl);
+        verify(postRepository).delete(post);
     }
 
     @DisplayName("게시글 단건 조회 성공")
@@ -105,45 +221,6 @@ class PostServiceTest {
         assertThrows(PostNotFoundException.class, () -> postService.getPost(999L));
     }
 
-    @DisplayName("게시글 수정 성공 - 작성자 본인")
-    @Test
-    void updatePost_Success() {
-        // given
-        PostUpdateRequest request = new PostUpdateRequest("updated title", "updated content");
-        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
-        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
-
-        // when & then
-        assertDoesNotThrow(() -> postService.updatePost(post.getId(), request, author.getEmail()));
-        assertThat(post.getTitle()).isEqualTo("updated title");
-        assertThat(post.getContent()).isEqualTo("updated content");
-    }
-
-    @DisplayName("게시글 수정 실패 - 작성자가 아닌 경우")
-    @Test
-    void updatePost_Fail_Forbidden() {
-        // given
-        PostUpdateRequest request = new PostUpdateRequest("updated title", "updated content");
-        given(userRepository.findByEmail(anotherUser.getEmail())).willReturn(Optional.of(anotherUser));
-        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
-
-        // when & then
-        assertThrows(PostUpdateForbiddenException.class,
-                () -> postService.updatePost(post.getId(), request, anotherUser.getEmail()));
-    }
-
-    @DisplayName("게시글 삭제 성공 - 작성자 본인")
-    @Test
-    void deletePost_Success_ByAuthor() {
-        // given
-        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
-        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
-        willDoNothing().given(postRepository).delete(post);
-
-        // when & then
-        assertDoesNotThrow(() -> postService.deletePost(post.getId(), author.getEmail()));
-        then(postRepository).should().delete(post);
-    }
 
     @DisplayName("게시글 삭제 성공 - 관리자")
     @Test

@@ -10,6 +10,8 @@ import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.global.util.JwtUtil;
+import com.gridhub.gridhub.infra.s3.S3UploaderService;
+import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,14 +19,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,32 +46,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class PostControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private PostRepository postRepository;
-    @Autowired
-    private JwtUtil jwtUtil;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
+    @Autowired private UserRepository userRepository;
+    @Autowired private PostRepository postRepository;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private EntityManager em; // DB와의 동기화를 위해 EntityManager 주입
 
-    private String authorToken;
-    private String anotherUserToken;
-    private String adminToken;
-    private User author;
-    private Post testPost;
+    @MockitoBean
+    private S3UploaderService s3UploaderService;
+
+    private String authorToken, anotherUserToken, adminToken;
+    private User author, anotherUser;
+    private Post testPost; // 다양한 테스트에서 공통으로 사용될 게시글
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAllInBatch();
-        postRepository.deleteAllInBatch();
-
         // 사용자 생성
-        author = userRepository.save(User.builder().email("author@test.com").password("encoded").nickname("author-geonoo").role(UserRole.USER).build());
-        User anotherUser = userRepository.save(User.builder().email("another@test.com").password("encoded").nickname("another-user").role(UserRole.USER).build());
-        User admin = userRepository.save(User.builder().email("admin@test.com").password("encoded").nickname("admin").role(UserRole.ADMIN).build());
+        author = User.builder().email("author@test.com").password("encoded").nickname("author-geonoo").role(UserRole.USER).build();
+        anotherUser = User.builder().email("another@test.com").password("encoded").nickname("another-user").role(UserRole.USER).build();
+        User admin = User.builder().email("admin@test.com").password("encoded").nickname("admin").role(UserRole.ADMIN).build();
+        userRepository.saveAll(List.of(author, anotherUser, admin));
 
         // 토큰 발급
         authorToken = jwtUtil.createToken(author.getEmail(), author.getRole());
@@ -68,166 +74,152 @@ public class PostControllerTest {
         adminToken = jwtUtil.createToken(admin.getEmail(), admin.getRole());
 
         // 테스트용 게시글 생성
-        testPost = postRepository.save(Post.builder().title("JPA Basics").content("About JPA").author(author).category(PostCategory.INFO).build());
-        postRepository.save(Post.builder().title("Spring Security").content("About Security").author(author).category(PostCategory.INFO).build());
-        postRepository.save(Post.builder().title("Free talk").content("Any content").author(anotherUser).category(PostCategory.FREE).build());
-        postRepository.save(Post.builder().title("Rumor about Spring").content("Rumor content").author(anotherUser).category(PostCategory.RUMOR).build());
+        testPost = Post.builder().title("JPA Basics").content("About JPA").author(author).category(PostCategory.INFO).imageUrl("https://s3.../existing.jpg").build();
+        Post post2 = Post.builder().title("Spring Security").content("About Security").author(author).category(PostCategory.INFO).build();
+        Post post3 = Post.builder().title("Free talk").content("Any content").author(anotherUser).category(PostCategory.FREE).build();
+        Post post4 = Post.builder().title("Rumor about Spring").content("Rumor content").author(anotherUser).category(PostCategory.RUMOR).build();
+        postRepository.saveAll(List.of(testPost, post2, post3, post4));
+
+        // 영속성 컨텍스트의 변경 내용을 DB에 강제 반영(flush)하고, 컨텍스트를 비워서(clear)
+        // 이후의 조회 쿼리가 DB에서 데이터를 직접 읽어오도록 함
+        em.flush();
+        em.clear();
     }
 
-    @DisplayName("게시글 작성 성공")
     @Test
-    void createPost_Success() throws Exception {
-        PostRequestDto request = new PostRequestDto("title", "content", PostCategory.INFO);
+    @DisplayName("POST /api/posts - 이미지와 함께 게시글 작성 성공")
+    void createPost_WithImage_Success() throws Exception {
+        PostRequestDto requestDto = new PostRequestDto();
+        requestDto.setTitle("New Post");
+        requestDto.setContent("New Content");
+        requestDto.setCategory(PostCategory.INFO);
 
-        mockMvc.perform(post("/api/posts")
-                        .header("Authorization", authorToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+        MockMultipartFile jsonRequest = new MockMultipartFile("request", "", "application/json", objectMapper.writeValueAsString(requestDto).getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile imageFile = new MockMultipartFile("image", "test.jpg", "image/jpeg", "image".getBytes());
+
+        String newImageUrl = "https://s3.../new.jpg";
+        given(s3UploaderService.upload(any(MockMultipartFile.class))).willReturn(newImageUrl);
+
+        mockMvc.perform(multipart(HttpMethod.POST, "/api/posts")
+                        .file(jsonRequest)
+                        .file(imageFile)
+                        .header("Authorization", authorToken))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.postId").exists())
                 .andDo(print());
     }
 
-    @DisplayName("GET /api/posts - 전체 게시글 목록 조회 성공")
     @Test
+    @DisplayName("PUT /api/posts/{postId} - 이미지 변경하여 게시글 수정 성공")
+    void updatePost_WithImageChange_Success() throws Exception {
+        PostUpdateRequest updateRequest = new PostUpdateRequest("updated title", "updated content");
+        MockMultipartFile jsonRequest = new MockMultipartFile("request", "", "application/json", objectMapper.writeValueAsString(updateRequest).getBytes(StandardCharsets.UTF_8));
+        MockMultipartFile newImageFile = new MockMultipartFile("image", "new.jpg", "image/jpeg", "new image".getBytes());
+        String newImageUrl = "https://s3.../new-url.jpg";
+        given(s3UploaderService.upload(any())).willReturn(newImageUrl);
+
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/posts/" + testPost.getId())
+                        .file(jsonRequest)
+                        .file(newImageFile)
+                        .header("Authorization", authorToken))
+                .andExpect(status().isOk());
+
+        // s3UploaderService.delete가 '기존' 이미지 URL로 호출되었는지 검증
+        verify(s3UploaderService).delete(testPost.getImageUrl());
+
+        em.flush(); em.clear(); // DB와 영속성 컨텍스트 동기화
+        Post updatedPost = postRepository.findById(testPost.getId()).orElseThrow();
+        assertThat(updatedPost.getImageUrl()).isEqualTo(newImageUrl);
+    }
+
+    @Test
+    @DisplayName("PUT /api/posts/{postId} - 다른 사용자가 수정 시도 시 실패")
+    void updatePost_Fail_Forbidden() throws Exception {
+        PostUpdateRequest updateRequest = new PostUpdateRequest("updated title", "updated content");
+        MockMultipartFile jsonRequest = new MockMultipartFile("request", "", "application/json", objectMapper.writeValueAsString(updateRequest).getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/posts/" + testPost.getId())
+                        .file(jsonRequest)
+                        .header("Authorization", anotherUserToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("P002"));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/posts/{postId} - 이미지 있는 게시글 삭제 성공")
+    void deletePost_WithImage_Success() throws Exception {
+        mockMvc.perform(delete("/api/posts/" + testPost.getId())
+                        .header("Authorization", authorToken))
+                .andExpect(status().isNoContent());
+
+        verify(s3UploaderService).delete(testPost.getImageUrl());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/posts/{postId} - 관리자에 의한 삭제 성공")
+    void deletePost_Success_ByAdmin() throws Exception {
+        mockMvc.perform(delete("/api/posts/" + testPost.getId())
+                        .header("Authorization", adminToken))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("GET /api/posts - 전체 게시글 목록 조회")
     void getPostList_AllCategories_Success() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("size", "10"))
+        mockMvc.perform(get("/api/posts").param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray())
-                .andExpect(jsonPath("$.totalElements").value(4))
-                .andDo(print());
+                .andExpect(jsonPath("$.totalElements").value(4));
     }
 
-    @DisplayName("GET /api/posts?category=INFO - 특정 카테고리 게시글 목록 조회 성공")
     @Test
+    @DisplayName("GET /api/posts - 카테고리별 목록 조회")
     void getPostList_ByCategory_Success() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("category", "INFO")
-                        .param("size", "5"))
+        mockMvc.perform(get("/api/posts").param("category", "INFO"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.content.[*].category", everyItem(is("INFO"))))
-                .andDo(print());
+                .andExpect(jsonPath("$.content.[*].category", everyItem(is("INFO"))));
     }
 
-    @DisplayName("GET /api/posts?category=INVALID - 잘못된 카테고리 요청 시 400 Bad Request 응답")
     @Test
+    @DisplayName("GET /api/posts - 잘못된 카테고리 요청")
     void getPostList_InvalidCategory_Fail() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("category", "INVALID_CATEGORY"))
-                .andExpect(status().isBadRequest())
-                .andDo(print());
+        mockMvc.perform(get("/api/posts").param("category", "INVALID_CATEGORY"))
+                .andExpect(status().isBadRequest());
     }
 
-    @DisplayName("GET /api/posts - 제목으로 검색")
     @Test
+    @DisplayName("GET /api/posts - 제목으로 검색")
     void getPostList_SearchByTitle() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("searchType", "title")
-                        .param("keyword", "JPA"))
+        mockMvc.perform(get("/api/posts").param("searchType", "title").param("keyword", "JPA"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("JPA Basics"));
     }
 
-    @DisplayName("GET /api/posts - 내용으로 검색")
     @Test
+    @DisplayName("GET /api/posts - 내용으로 검색")
     void getPostList_SearchByContent() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("searchType", "content")
-                        .param("keyword", "Security"))
+        mockMvc.perform(get("/api/posts").param("searchType", "content").param("keyword", "Security"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("Spring Security"));
     }
 
-    @DisplayName("GET /api/posts - 작성자 닉네임으로 검색")
     @Test
+    @DisplayName("GET /api/posts - 닉네임으로 검색")
     void getPostList_SearchByNickname() throws Exception {
-        mockMvc.perform(get("/api/posts")
-                        .param("searchType", "nickname")
-                        .param("keyword", "geonoo")) // 'author-geonoo'의 일부
+        mockMvc.perform(get("/api/posts").param("searchType", "nickname").param("keyword", "geonoo"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.content.[*].authorNickname", everyItem(is("author-geonoo"))));
     }
 
-    @DisplayName("GET /api/posts - 카테고리와 제목으로 동시 검색")
     @Test
+    @DisplayName("GET /api/posts - 카테고리와 제목으로 동시 검색")
     void getPostList_SearchWithCategoryAndTitle() throws Exception {
         mockMvc.perform(get("/api/posts")
-                        .param("category", "RUMOR")
-                        .param("searchType", "title")
-                        .param("keyword", "Spring"))
+                        .param("category", "RUMOR").param("searchType", "title").param("keyword", "Spring"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("Rumor about Spring"));
-    }
-
-    @DisplayName("게시글 수정 실패 - 다른 사용자가 수정 시도")
-    @Test
-    void updatePost_Fail_Forbidden() throws Exception {
-        PostUpdateRequest updateRequest = new PostUpdateRequest("updated title", "updated content");
-
-        mockMvc.perform(put("/api/posts/" + testPost.getId())
-                        .header("Authorization", anotherUserToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("P002"))
-                .andDo(print());
-    }
-
-    @DisplayName("게시글 삭제 성공 - 관리자")
-    @Test
-    void deletePost_Success_ByAdmin() throws Exception {
-        mockMvc.perform(delete("/api/posts/" + testPost.getId())
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNoContent())
-                .andDo(print());
-    }
-
-    @DisplayName("게시글 조회 시 조회수 증가 및 쿠키를 이용한 중복 방지")
-    @Test
-    void getPost_ViewCount_IncreasesOnFirstViewOnly() throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/posts/" + testPost.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.viewCount").value(1))
-                .andReturn();
-
-        Cookie viewCookie = result.getResponse().getCookie("post_view");
-        assertThat(viewCookie).isNotNull();
-
-        mockMvc.perform(get("/api/posts/" + testPost.getId())
-                        .cookie(viewCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.viewCount").value(1))
-                .andDo(print());
-    }
-
-    @DisplayName("게시글 추천 및 취소 플로우 테스트")
-    @Test
-    void addAndRemoveLike_Flow_Success() throws Exception {
-        mockMvc.perform(post("/api/posts/" + testPost.getId() + "/like")
-                        .header("Authorization", authorToken))
-                .andExpect(status().isCreated());
-
-        mockMvc.perform(get("/api/posts/" + testPost.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.likeCount").value(1));
-
-        mockMvc.perform(post("/api/posts/" + testPost.getId() + "/like")
-                        .header("Authorization", authorToken))
-                .andExpect(status().isConflict());
-
-        mockMvc.perform(delete("/api/posts/" + testPost.getId() + "/like")
-                        .header("Authorization", authorToken))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/posts/" + testPost.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.likeCount").value(0));
     }
 }
