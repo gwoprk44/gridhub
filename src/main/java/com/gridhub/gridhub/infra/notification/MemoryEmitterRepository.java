@@ -1,12 +1,14 @@
 package com.gridhub.gridhub.infra.notification;
 
 import com.gridhub.gridhub.domain.notification.repository.EmitterRepository;
+import org.springframework.stereotype.Repository;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+@Repository
 public class MemoryEmitterRepository implements EmitterRepository {
 
     // 동시성 문제 해결
