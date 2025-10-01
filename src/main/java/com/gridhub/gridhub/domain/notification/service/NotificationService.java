@@ -2,6 +2,7 @@ package com.gridhub.gridhub.domain.notification.service;
 
 import com.gridhub.gridhub.domain.notification.dto.NotificationResponse;
 import com.gridhub.gridhub.domain.notification.entity.Notification;
+import com.gridhub.gridhub.domain.notification.exception.NotificationAccessDeniedException;
 import com.gridhub.gridhub.domain.notification.exception.NotificationNotFoundException;
 import com.gridhub.gridhub.domain.notification.repository.EmitterRepository;
 import com.gridhub.gridhub.domain.notification.repository.NotificationRepository;
@@ -114,7 +115,7 @@ public class NotificationService {
 
         // 알림의 수신자가 현재 사용자가 맞는지 확인 (보안)
         if (!notification.getReceiver().getId().equals(user.getId())) {
-            throw new NotificationNotFoundException();
+            throw new NotificationAccessDeniedException();
         }
 
         notification.read(); // 엔티티의 read() 메서드 호출
