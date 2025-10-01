@@ -2,11 +2,16 @@ package com.gridhub.gridhub.domain.notification.service;
 
 import com.gridhub.gridhub.domain.notification.dto.NotificationResponse;
 import com.gridhub.gridhub.domain.notification.entity.Notification;
+import com.gridhub.gridhub.domain.notification.exception.NotificationNotFoundException;
 import com.gridhub.gridhub.domain.notification.repository.EmitterRepository;
 import com.gridhub.gridhub.domain.notification.repository.NotificationRepository;
 import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,6 +28,7 @@ public class NotificationService {
 
     private final EmitterRepository emitterRepository;
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
 
     /**
      * 클라이언트가 SSE 연결을 요청할 때 호출되는 메서드
@@ -80,5 +86,54 @@ public class NotificationService {
             emitterRepository.deleteById(emitterId);
             log.error("SSE 연결 오류!", e);
         }
+    }
+
+    /**
+     * 현재 로그인한 사용자의 모든 알림을 페이징하여 조회.
+     * @param userId 현재 사용자 ID
+     * @param pageable 페이징 정보
+     * @return 페이징된 알림 DTO 목록
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
+        User user = findUserById(userId);
+        Page<Notification> notifications = notificationRepository.findAllByReceiverOrderByCreatedAtDesc(user, pageable);
+        return notifications.map(NotificationResponse::from);
+    }
+
+    /**
+     * 특정 알림을 읽음 상태로 변경.
+     * @param notificationId 읽을 알림 ID
+     * @param userId 현재 사용자 ID (권한 확인용)
+     */
+    @Transactional
+    public void readNotification(Long notificationId, Long userId) {
+        User user = findUserById(userId);
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(NotificationNotFoundException::new);
+
+        // 알림의 수신자가 현재 사용자가 맞는지 확인 (보안)
+        if (!notification.getReceiver().getId().equals(user.getId())) {
+            throw new NotificationNotFoundException();
+        }
+
+        notification.read(); // 엔티티의 read() 메서드 호출
+    }
+
+    /**
+     * 현재 로그인한 사용자의 읽지 않은 알림 개수를 조회.
+     * @param userId 현재 사용자 ID
+     * @return 읽지 않은 알림 개수
+     */
+    @Transactional(readOnly = true)
+    public long getUnreadNotificationCount(Long userId) {
+        User user = findUserById(userId);
+        return notificationRepository.countByReceiverAndIsReadFalse(user);
+    }
+
+    // 사용자 조회를 위한 헬퍼 메서드
+    private User findUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
     }
 }
