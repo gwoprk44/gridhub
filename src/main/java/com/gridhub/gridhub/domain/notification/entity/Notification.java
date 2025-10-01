@@ -1,5 +1,6 @@
 package com.gridhub.gridhub.domain.notification.entity;
 
+import com.gridhub.gridhub.domain.BaseTimeEntity;
 import com.gridhub.gridhub.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Notification {
+public class Notification extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
