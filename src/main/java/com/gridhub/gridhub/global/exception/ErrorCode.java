@@ -40,7 +40,11 @@ public enum ErrorCode {
     PREDICTION_ALREADY_EXISTS(HttpStatus.CONFLICT, "PR001", "해당 레이스에 대한 예측 기록이 이미 존재합니다."),
     PREDICTION_PERIOD_INVALID(HttpStatus.BAD_REQUEST, "PR002", "예측 가능한 시간이 아닙니다."),
     DUPLICATE_DRIVER_PREDICTION(HttpStatus.BAD_REQUEST, "PR003", "한 드라이버를 중복으로 예측할 수 없습니다."),
-    DRIVER_NOT_FOUND(HttpStatus.NOT_FOUND, "PR004", "존재하지 않는 드라이버입니다.");
+    DRIVER_NOT_FOUND(HttpStatus.NOT_FOUND, "PR004", "존재하지 않는 드라이버입니다."),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "해당 알림을 찾을 수 없습니다."),
+    NOTIFICATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "N002", "해당 알림에 접근할 권한이 없습니다.");
 
     // TODO: 앞으로 필요한 에러 코드를 여기에 추가
 
