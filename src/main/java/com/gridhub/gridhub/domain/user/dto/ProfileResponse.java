@@ -11,12 +11,13 @@ public record ProfileResponse(
         String profileImageUrl,
         int points,
         FavoriteDriverDto favoriteDriver,
-        FavoriteTeamDto favoriteTeam
+        FavoriteTeamDto favoriteTeam,
+        PredictionStatsDto predictionStats
 ) {
     public record FavoriteDriverDto(Integer driverId, String fullName) {}
     public record FavoriteTeamDto(Long teamId, String name, String teamColour) {}
 
-    public static ProfileResponse from(User user) {
+    public static ProfileResponse of(User user, PredictionStatsDto stats) {
         Driver driver = user.getFavoriteDriver();
         Team team = user.getFavoriteTeam();
 
@@ -27,7 +28,8 @@ public record ProfileResponse(
                 user.getProfileImageUrl(),
                 user.getPoints(),
                 driver != null ? new FavoriteDriverDto(driver.getId(), driver.getFullName()) : null,
-                team != null ? new FavoriteTeamDto(team.getId(), team.getName(), team.getTeamColour()) : null
+                team != null ? new FavoriteTeamDto(team.getId(), team.getName(), team.getTeamColour()) : null,
+                stats
         );
     }
 }

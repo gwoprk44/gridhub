@@ -4,6 +4,8 @@ import com.gridhub.gridhub.domain.f1data.entity.Driver;
 import com.gridhub.gridhub.domain.f1data.entity.Team;
 import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
+import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
+import com.gridhub.gridhub.domain.user.dto.PredictionStatsDto;
 import com.gridhub.gridhub.domain.user.dto.ProfileResponse;
 import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
@@ -26,6 +28,7 @@ public class UserService {
     private final S3UploaderService s3UploaderService;
     private final DriverRepository driverRepository;
     private final TeamRepository teamRepository;
+    private final PredictionRepository predictionRepository;
 
     /**
      * 내 프로필 조회
@@ -33,7 +36,23 @@ public class UserService {
     @Transactional(readOnly = true)
     public ProfileResponse getMyProfile(String userEmail) {
         User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
-        return ProfileResponse.from(user);
+
+        // 1. 예측 통계 정보 조회
+        long totalPredictions = predictionRepository.countByUser(user);
+        long correctPredictions = predictionRepository.countByUserAndIsCorrectTrue(user);
+
+        // 2. 성공률 계산 (0으로 나누는 경우 방지)
+        double winRate = (totalPredictions == 0) ? 0 : ((double) correctPredictions / totalPredictions);
+
+        // 3. 통계 DTO 생성
+        PredictionStatsDto stats = new PredictionStatsDto(
+                totalPredictions,
+                correctPredictions,
+                winRate
+        );
+
+        // 4. 최종 응답 DTO 생성
+        return ProfileResponse.of(user, stats);
     }
 
     /**
