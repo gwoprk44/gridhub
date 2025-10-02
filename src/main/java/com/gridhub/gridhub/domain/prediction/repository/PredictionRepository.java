@@ -31,4 +31,11 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
      * @return 성공한 예측 횟수
      */
     long countByUserAndIsCorrectTrue(User user);
+
+    /**
+     * 특정 사용자의 예측 기록을 최신순으로 5개 조회.
+     * @param user 조회할 사용자
+     * @return Prediction 엔티티 리스트
+     */
+    List<Prediction> findTop5ByUserOrderByCreatedAtDesc(User user);
 }
