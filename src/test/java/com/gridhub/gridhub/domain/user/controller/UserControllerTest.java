@@ -29,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.time.LocalDateTime;
 
+import static org.springframework.test.util.ReflectionTestUtils.setField;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -58,6 +60,7 @@ class UserControllerTest {
     @Autowired
     private DriverRepository driverRepository;
 
+
     @MockitoBean
     private S3UploaderService s3UploaderService;
 
@@ -66,33 +69,9 @@ class UserControllerTest {
 
     @BeforeEach
     void setUp() {
-        predictionRepository.deleteAllInBatch();
-        raceRepository.deleteAllInBatch();
-        driverRepository.deleteAllInBatch();
-        userRepository.deleteAllInBatch();
-
-        testUser = userRepository.save(User.builder().email("test@test.com").password("pwd").nickname("testuser").role(UserRole.USER).build());
+        testUser = User.builder().email("test@test.com").password("pwd").nickname("testuser").role(UserRole.USER).build();
+        userRepository.saveAndFlush(testUser);
         userToken = jwtUtil.createToken(testUser.getEmail(), testUser.getRole());
-
-        ZonedDateTime now = ZonedDateTime.now();
-        Race race1 = raceRepository.save(Race.builder()
-                .id(1L).year(now.getYear()).dateStart(now).dateEnd(now)
-                .meetingKey(1L).meetingName("GP1").sessionName("Race")
-                .countryName("C1").circuitShortName("C1")
-                .build());
-        Race race2 = raceRepository.save(Race.builder()
-                .id(2L).year(now.getYear()).dateStart(now).dateEnd(now)
-                .meetingKey(2L).meetingName("GP2").sessionName("Race")
-                .countryName("C2").circuitShortName("C2")
-                .build());
-        Driver driver1 = driverRepository.save(Driver.builder().id(1).build());
-
-        Prediction prediction1 = Prediction.builder().user(testUser).race(race1).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
-        prediction1.updateResult(true, 10);
-
-        Prediction prediction2 = Prediction.builder().user(testUser).race(race2).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
-
-        predictionRepository.saveAll(List.of(prediction1, prediction2));
     }
 
     @DisplayName("GET /api/users/me - 내 프로필 조회 성공")
@@ -167,20 +146,6 @@ class UserControllerTest {
                 .andDo(print());
     }
 
-    @DisplayName("GET /api/users/me - 내 프로필 조회 시 예측 통계 정보 포함 확인")
-    @Test
-    void getMyProfile_WithPredictionStats_Success() throws Exception {
-        mockMvc.perform(get("/api/users/me")
-                        .header("Authorization", userToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("testuser"))
-                .andExpect(jsonPath("$.predictionStats").exists())
-                .andExpect(jsonPath("$.predictionStats.totalPredictions").value(2))
-                .andExpect(jsonPath("$.predictionStats.correctPredictions").value(1))
-                .andExpect(jsonPath("$.predictionStats.winRate").value(0.5)) // 1 / 2 = 0.5
-                .andDo(print());
-    }
-
     @DisplayName("GET /api/users/me - 내 프로필 조회 시 티어 정보 포함 확인")
     @Test
     void getMyProfile_WithTier_Success() throws Exception {
@@ -197,5 +162,51 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.points").value(1600))
                 .andExpect(jsonPath("$.tier").value("Platinum"))
                 .andDo(print());
+    }
+
+    @DisplayName("GET /api/users/me - 내 프로필 조회 시 예측 통계 및 최근 기록 포함 확인")
+    @Test
+    void getMyProfile_WithPredictionData_Success() throws Exception {
+        // given: 이 테스트에만 필요한 예측 관련 데이터를 여기서 생성
+        Race race1 = raceRepository.save(createTestRace(1L, "GP1"));
+        Race race2 = raceRepository.save(createTestRace(2L, "GP2"));
+        Driver driver1 = driverRepository.save(Driver.builder().id(1).build());
+
+        Prediction p1 = Prediction.builder().user(testUser).race(race1).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
+        setField(p1, "createdAt", LocalDateTime.now().minusDays(2));
+        p1.updateResult(true, 10); // 성공한 예측으로 설정
+
+        Prediction p2 = Prediction.builder().user(testUser).race(race2).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
+        setField(p2, "createdAt", LocalDateTime.now()); // 실패한 예측 (가장 최신)
+
+        predictionRepository.saveAllAndFlush(List.of(p1, p2));
+
+        // when & then
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", userToken))
+                .andExpect(status().isOk())
+                // 1. 예측 통계 검증
+                .andExpect(jsonPath("$.predictionStats.totalPredictions").value(2))
+                .andExpect(jsonPath("$.predictionStats.correctPredictions").value(1))
+                .andExpect(jsonPath("$.predictionStats.winRate").value(0.5))
+                // 2. 최근 예측 기록 검증
+                .andExpect(jsonPath("$.recentPredictions.length()").value(2))
+                .andExpect(jsonPath("$.recentPredictions[0].raceName").value("GP2")) // 최신 예측이 먼저 오는지 확인
+                .andDo(print());
+    }
+
+    // 테스트용 Race 객체를 생성하는 헬퍼 메서드
+    private Race createTestRace(Long id, String meetingName) {
+        return Race.builder()
+                .id(id)
+                .year(ZonedDateTime.now().getYear())
+                .dateStart(ZonedDateTime.now())
+                .dateEnd(ZonedDateTime.now())
+                .meetingKey(id)
+                .meetingName(meetingName)
+                .sessionName("Race")
+                .countryName("Testland")
+                .circuitShortName("TST")
+                .build();
     }
 }

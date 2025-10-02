@@ -1,7 +1,9 @@
 package com.gridhub.gridhub.domain.user.service;
 
+import com.gridhub.gridhub.domain.f1data.entity.Race;
 import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
+import com.gridhub.gridhub.domain.prediction.entity.Prediction;
 import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.domain.user.dto.ProfileResponse;
 import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
@@ -20,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -179,5 +182,33 @@ class UserServiceTest {
 
         // then
         assertThat(profile.tier()).isEqualTo("Gold");
+    }
+
+    @DisplayName("내 프로필 조회 시 최근 예측 기록 5건이 포함된다")
+    @Test
+    void getMyProfile_WithRecentPredictions_Success() {
+        // given
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+
+        // Mock 데이터 생성
+        Race mockRace = Race.builder().id(101L).meetingName("Test GP").build();
+        Prediction prediction1 = Prediction.builder().user(testUser).race(mockRace).build();
+        Prediction prediction2 = Prediction.builder().user(testUser).race(mockRace).build();
+        List<Prediction> mockPredictions = List.of(prediction1, prediction2);
+
+        // PredictionRepository Mock 설정 (통계는 0으로 가정)
+        given(predictionRepository.countByUser(testUser)).willReturn(2L);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(0L);
+        // 최근 5건 조회 메서드가 mockPredictions 리스트를 반환하도록 설정
+        given(predictionRepository.findTop5ByUserOrderByCreatedAtDesc(testUser)).willReturn(mockPredictions);
+
+        // when
+        ProfileResponse profile = userService.getMyProfile("test@test.com");
+
+        // then
+        assertThat(profile.recentPredictions()).isNotNull();
+        assertThat(profile.recentPredictions()).hasSize(2);
+        assertThat(profile.recentPredictions().get(0).raceId()).isEqualTo(101L);
+        assertThat(profile.recentPredictions().get(0).raceName()).isEqualTo("Test GP");
     }
 }
