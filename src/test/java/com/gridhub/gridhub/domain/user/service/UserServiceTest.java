@@ -161,4 +161,23 @@ class UserServiceTest {
         assertThat(profile.predictionStats().totalPredictions()).isEqualTo(0L);
         assertThat(profile.predictionStats().winRate()).isEqualTo(0.0); // 0으로 나누기 오류가 발생하지 않는지 확인
     }
+
+    @DisplayName("내 프로필 조회 시 포인트에 맞는 티어 정보가 포함된다")
+    @Test
+    void getMyProfile_WithTierInfo_Success() {
+        // given
+        // testUser의 포인트를 750점으로 설정 (Gold 티어 예상)
+        testUser.addPoints(750);
+
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+        // 예측 통계는 이 테스트의 관심사가 아니므로 간단히 Mocking
+        given(predictionRepository.countByUser(testUser)).willReturn(0L);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(0L);
+
+        // when
+        ProfileResponse profile = userService.getMyProfile("test@test.com");
+
+        // then
+        assertThat(profile.tier()).isEqualTo("Gold");
+    }
 }

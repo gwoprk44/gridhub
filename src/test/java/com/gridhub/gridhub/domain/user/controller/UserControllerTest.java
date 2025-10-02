@@ -180,4 +180,22 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.predictionStats.winRate").value(0.5)) // 1 / 2 = 0.5
                 .andDo(print());
     }
+
+    @DisplayName("GET /api/users/me - 내 프로필 조회 시 티어 정보 포함 확인")
+    @Test
+    void getMyProfile_WithTier_Success() throws Exception {
+        // given
+        // testUser의 포인트를 1600점으로 설정 (Platinum 티어 예상)
+        testUser.addPoints(1600);
+        userRepository.save(testUser);
+
+        // when & then
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("testuser"))
+                .andExpect(jsonPath("$.points").value(1600))
+                .andExpect(jsonPath("$.tier").value("Platinum"))
+                .andDo(print());
+    }
 }
