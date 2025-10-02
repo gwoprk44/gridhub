@@ -1,6 +1,12 @@
 package com.gridhub.gridhub.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gridhub.gridhub.domain.f1data.entity.Driver;
+import com.gridhub.gridhub.domain.f1data.entity.Race;
+import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
+import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
+import com.gridhub.gridhub.domain.prediction.entity.Prediction;
+import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
@@ -21,6 +27,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -43,6 +51,12 @@ class UserControllerTest {
     private UserRepository userRepository;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private PredictionRepository predictionRepository;
+    @Autowired
+    private RaceRepository raceRepository;
+    @Autowired
+    private DriverRepository driverRepository;
 
     @MockitoBean
     private S3UploaderService s3UploaderService;
@@ -52,9 +66,33 @@ class UserControllerTest {
 
     @BeforeEach
     void setUp() {
+        predictionRepository.deleteAllInBatch();
+        raceRepository.deleteAllInBatch();
+        driverRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
+
         testUser = userRepository.save(User.builder().email("test@test.com").password("pwd").nickname("testuser").role(UserRole.USER).build());
         userToken = jwtUtil.createToken(testUser.getEmail(), testUser.getRole());
+
+        ZonedDateTime now = ZonedDateTime.now();
+        Race race1 = raceRepository.save(Race.builder()
+                .id(1L).year(now.getYear()).dateStart(now).dateEnd(now)
+                .meetingKey(1L).meetingName("GP1").sessionName("Race")
+                .countryName("C1").circuitShortName("C1")
+                .build());
+        Race race2 = raceRepository.save(Race.builder()
+                .id(2L).year(now.getYear()).dateStart(now).dateEnd(now)
+                .meetingKey(2L).meetingName("GP2").sessionName("Race")
+                .countryName("C2").circuitShortName("C2")
+                .build());
+        Driver driver1 = driverRepository.save(Driver.builder().id(1).build());
+
+        Prediction prediction1 = Prediction.builder().user(testUser).race(race1).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
+        prediction1.updateResult(true, 10);
+
+        Prediction prediction2 = Prediction.builder().user(testUser).race(race2).predictedP1(driver1).predictedP2(driver1).predictedP3(driver1).build();
+
+        predictionRepository.saveAll(List.of(prediction1, prediction2));
     }
 
     @DisplayName("GET /api/users/me - 내 프로필 조회 성공")
@@ -126,6 +164,20 @@ class UserControllerTest {
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("U002"))
+                .andDo(print());
+    }
+
+    @DisplayName("GET /api/users/me - 내 프로필 조회 시 예측 통계 정보 포함 확인")
+    @Test
+    void getMyProfile_WithPredictionStats_Success() throws Exception {
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("testuser"))
+                .andExpect(jsonPath("$.predictionStats").exists())
+                .andExpect(jsonPath("$.predictionStats.totalPredictions").value(2))
+                .andExpect(jsonPath("$.predictionStats.correctPredictions").value(1))
+                .andExpect(jsonPath("$.predictionStats.winRate").value(0.5)) // 1 / 2 = 0.5
                 .andDo(print());
     }
 }

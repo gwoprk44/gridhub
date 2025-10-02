@@ -2,6 +2,7 @@ package com.gridhub.gridhub.domain.user.service;
 
 import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
+import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.domain.user.dto.ProfileResponse;
 import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
@@ -41,6 +42,8 @@ class UserServiceTest {
     private DriverRepository driverRepository;
     @Mock
     private TeamRepository teamRepository;
+    @Mock
+    private PredictionRepository predictionRepository;
 
     private User testUser;
 
@@ -115,5 +118,47 @@ class UserServiceTest {
         // then
         verify(s3UploaderService).upload(image);
         assertThat(testUser.getProfileImageUrl()).isEqualTo(fakeImageUrl);
+    }
+
+    @DisplayName("내 프로필 조회 시 예측 통계 정보가 포함된다")
+    @Test
+    void getMyProfile_WithPredictionStats_Success() {
+        // given
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+
+        // PredictionRepository Mock 설정
+        long totalPredictions = 10L;
+        long correctPredictions = 3L;
+        given(predictionRepository.countByUser(testUser)).willReturn(totalPredictions);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(correctPredictions);
+
+        // when
+        ProfileResponse profile = userService.getMyProfile("test@test.com");
+
+        // then
+        assertThat(profile.nickname()).isEqualTo("testuser");
+        assertThat(profile.predictionStats()).isNotNull();
+        assertThat(profile.predictionStats().totalPredictions()).isEqualTo(totalPredictions);
+        assertThat(profile.predictionStats().correctPredictions()).isEqualTo(correctPredictions);
+        assertThat(profile.predictionStats().winRate()).isEqualTo(0.3); // 3 / 10 = 0.3
+    }
+
+    @DisplayName("내 프로필 조회 시 예측 기록이 없으면 성공률은 0이 된다")
+    @Test
+    void getMyProfile_WithZeroPredictions_WinRateIsZero() {
+        // given
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+
+        // 예측 기록이 없는 상황 Mock
+        given(predictionRepository.countByUser(testUser)).willReturn(0L);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(0L);
+
+        // when
+        ProfileResponse profile = userService.getMyProfile("test@test.com");
+
+        // then
+        assertThat(profile.predictionStats()).isNotNull();
+        assertThat(profile.predictionStats().totalPredictions()).isEqualTo(0L);
+        assertThat(profile.predictionStats().winRate()).isEqualTo(0.0); // 0으로 나누기 오류가 발생하지 않는지 확인
     }
 }
