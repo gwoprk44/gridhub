@@ -10,12 +10,6 @@ public record TeamInfoResponse(
         String teamColour,
         List<DriverInTeamDto> drivers
 ) {
-    // 팀 정보에 포함될 드라이버의 최소 정보
-    public record DriverInTeamDto(
-            Integer driverNumber,
-            String fullName
-    ) {}
-
     public static TeamInfoResponse from(Team team) {
         List<DriverInTeamDto> driverDtos = team.getDrivers().stream()
                 .map(driver -> new DriverInTeamDto(driver.getId(), driver.getFullName()))

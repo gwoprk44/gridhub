@@ -2,8 +2,11 @@ package com.gridhub.gridhub.domain.user.dto;
 
 import com.gridhub.gridhub.domain.f1data.entity.Driver;
 import com.gridhub.gridhub.domain.f1data.entity.Team;
+import com.gridhub.gridhub.domain.prediction.dto.PredictionHistoryDto; // import 추가
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserTier;
+
+import java.util.List;
 
 public record ProfileResponse(
         String email,
@@ -14,12 +17,10 @@ public record ProfileResponse(
         String tier,
         FavoriteDriverDto favoriteDriver,
         FavoriteTeamDto favoriteTeam,
-        PredictionStatsDto predictionStats
+        PredictionStatsDto predictionStats,
+        List<PredictionHistoryDto> recentPredictions
 ) {
-    public record FavoriteDriverDto(Integer driverId, String fullName) {}
-    public record FavoriteTeamDto(Long teamId, String name, String teamColour) {}
-
-    public static ProfileResponse of(User user, PredictionStatsDto stats) {
+    public static ProfileResponse of(User user, PredictionStatsDto stats, List<PredictionHistoryDto> recentPredictions) {
         Driver driver = user.getFavoriteDriver();
         Team team = user.getFavoriteTeam();
 
@@ -32,7 +33,8 @@ public record ProfileResponse(
                 UserTier.getTierByPoints(user.getPoints()).getTierName(),
                 driver != null ? new FavoriteDriverDto(driver.getId(), driver.getFullName()) : null,
                 team != null ? new FavoriteTeamDto(team.getId(), team.getName(), team.getTeamColour()) : null,
-                stats
+                stats,
+                recentPredictions
         );
     }
 }
