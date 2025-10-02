@@ -1,6 +1,10 @@
 package com.gridhub.gridhub.domain.user.service;
 
+import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
+import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
 import com.gridhub.gridhub.domain.user.dto.LoginRequest;
+import com.gridhub.gridhub.domain.user.dto.ProfileResponse;
+import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
 import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
@@ -10,23 +14,26 @@ import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.global.util.JwtUtil;
+import com.gridhub.gridhub.infra.s3.S3UploaderService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.io.IOException;
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.never;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -42,6 +49,22 @@ class UserServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private S3UploaderService s3UploaderService;
+
+    @Mock
+    private DriverRepository driverRepository;
+
+    @Mock
+    private TeamRepository teamRepository;
+
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        testUser = User.builder().email("test@test.com").nickname("testuser").role(UserRole.USER).build();
+    }
 
     @DisplayName("회원가입 성공")
     @Test
@@ -179,5 +202,83 @@ class UserServiceTest {
 
         // 토큰 생성 로직은 호출되지 않아야 함
         then(jwtUtil).should(never()).createToken(anyString(), any(UserRole.class));
+    }
+
+    @DisplayName("내 프로필 조회 성공")
+    @Test
+    void getMyProfile_Success() {
+        // given
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+
+        // when
+        ProfileResponse profile = userService.getMyProfile("test@test.com");
+
+        // then
+        assertThat(profile.nickname()).isEqualTo("testuser");
+    }
+
+    @DisplayName("내 프로필 수정 성공 (텍스트 정보만)")
+    @Test
+    void updateMyProfile_TextOnly_Success() throws IOException {
+        // given
+        ProfileUpdateRequest request = new ProfileUpdateRequest();
+        request.setNickname("newNickname");
+        request.setBio("new bio");
+
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+        given(userRepository.existsByNickname("newNickname")).willReturn(false);
+
+        // when
+        userService.updateMyProfile("test@test.com", request, null);
+
+        // then
+        assertThat(testUser.getNickname()).isEqualTo("newNickname");
+        assertThat(testUser.getBio()).isEqualTo("new bio");
+        // 이미지 업로드/삭제는 호출되지 않아야 함
+        verify(s3UploaderService, never()).upload(any());
+        verify(s3UploaderService, never()).delete(any());
+    }
+
+    @DisplayName("내 프로필 수정 성공 (새 이미지 추가)")
+    @Test
+    void updateMyProfile_WithNewImage_Success() throws IOException {
+        // given
+        ProfileUpdateRequest request = new ProfileUpdateRequest();
+        MockMultipartFile newImage = new MockMultipartFile("image", "new.jpg", "image/jpeg", "content".getBytes());
+        String newImageUrl = "https://s3.com/new.jpg";
+
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+        given(s3UploaderService.upload(newImage)).willReturn(newImageUrl);
+
+        // when
+        userService.updateMyProfile("test@test.com", request, newImage);
+
+        // then
+        verify(s3UploaderService, times(1)).upload(newImage); // 업로드 호출 검증
+        verify(s3UploaderService, never()).delete(any()); // 기존 이미지가 없으므로 delete는 호출 안 됨
+        assertThat(testUser.getProfileImageUrl()).isEqualTo(newImageUrl);
+    }
+
+    @DisplayName("내 프로필 수정 성공 (기존 이미지 교체)")
+    @Test
+    void updateMyProfile_ReplaceImage_Success() throws IOException {
+        // given
+        String oldImageUrl = "https://s3.com/old.jpg";
+        testUser.updateProfileImage(oldImageUrl); // 기존 이미지 설정
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest();
+        MockMultipartFile newImage = new MockMultipartFile("image", "new.jpg", "image/jpeg", "content".getBytes());
+        String newImageUrl = "https://s3.com/new.jpg";
+
+        given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(testUser));
+        given(s3UploaderService.upload(newImage)).willReturn(newImageUrl);
+        willDoNothing().given(s3UploaderService).delete(oldImageUrl);
+
+        // when
+        userService.updateMyProfile("test@test.com", request, newImage);
+
+        // then
+        verify(s3UploaderService, times(1)).delete(oldImageUrl); // 기존 이미지 삭제 호출 검증
+        assertThat(testUser.getProfileImageUrl()).isEqualTo(newImageUrl);
     }
 }

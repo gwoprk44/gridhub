@@ -1,124 +1,131 @@
 package com.gridhub.gridhub.domain.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gridhub.gridhub.domain.user.dto.SignUpRequest;
-import com.gridhub.gridhub.domain.user.exception.EmailAlreadyExistsException;
-import com.gridhub.gridhub.domain.user.service.UserService;
-import com.gridhub.gridhub.global.exception.GlobalExceptionHandler;
+import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
+import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserRole;
+import com.gridhub.gridhub.domain.user.repository.UserRepository;
+import com.gridhub.gridhub.global.util.JwtUtil;
+import com.gridhub.gridhub.infra.s3.S3UploaderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
 class UserControllerTest {
 
-    private MockMvc mockMvc; // HTTP 요청 시뮬레이션 (수동 설정)
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private JwtUtil jwtUtil;
 
-    private final ObjectMapper objectMapper = new ObjectMapper(); // JSON 변환
+    @MockitoBean
+    private S3UploaderService s3UploaderService;
 
-    @Mock // 가짜(Mock) 객체 생성
-    private UserService userService;
+    private String userToken;
+    private User testUser;
 
-    @InjectMocks // @Mock으로 생성된 객체를 주입받는 대상
-    private UserController userController;
-
-    @BeforeEach // 각 테스트 실행 전에 MockMvc를 수동으로 설정
+    @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(userController)
-                .setControllerAdvice(new GlobalExceptionHandler()) // 중요: 전역 예외 처리기 등록
-                .build();
+        userRepository.deleteAllInBatch();
+        testUser = userRepository.save(User.builder().email("test@test.com").password("pwd").nickname("testuser").role(UserRole.USER).build());
+        userToken = jwtUtil.createToken(testUser.getEmail(), testUser.getRole());
     }
 
-    @DisplayName("회원가입 성공")
+    @DisplayName("GET /api/users/me - 내 프로필 조회 성공")
     @Test
-    void signUp_Success() throws Exception {
-        // given
-        SignUpRequest request = new SignUpRequest("test@test.com", "Password123!", "testuser");
-        willDoNothing().given(userService).signUp(any(SignUpRequest.class));
-
-        // when
-        ResultActions actions = mockMvc.perform(post("/api/auth/signup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
-
-        // then
-        actions
-                .andExpect(status().isCreated())
+    void getMyProfile_Success() throws Exception {
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("testuser"))
+                .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andDo(print());
     }
 
-    @DisplayName("회원가입 실패 - 잘못된 입력값 (이메일 형식 오류)")
+    @DisplayName("PATCH /api/users/me - 내 프로필 수정 성공 (이미지 포함)")
     @Test
-    void signUp_Fail_InvalidInput() throws Exception {
+    void updateMyProfile_Success() throws Exception {
         // given
-        SignUpRequest request = new SignUpRequest("test.com", "Password123!", "testuser"); // 잘못된 이메일 형식
+        ProfileUpdateRequest requestDto = new ProfileUpdateRequest();
+        requestDto.setNickname("newNick"); // "updatedNickname" (15자) -> "newNick" (7자)
+        requestDto.setBio("My new bio");
 
-        // when
-        ResultActions actions = mockMvc.perform(post("/api/auth/signup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
+        MockMultipartFile jsonRequest = new MockMultipartFile(
+                "request", "", "application/json",
+                objectMapper.writeValueAsString(requestDto).getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile imageFile = new MockMultipartFile(
+                "image", "profile.jpg", "image/jpeg", "image content".getBytes()
+        );
 
-        // then
-        actions
-                .andExpect(status().isBadRequest())
-                // .andExpect(jsonPath("$.code").value("C001")) // @Valid 예외는 응답 형식이 다를 수 있음
-                // .andExpect(jsonPath("$.message").value("이메일 형식에 맞지 않습니다."))
+        String fakeImageUrl = "https://s3.com/profile.jpg";
+        given(s3UploaderService.upload(any(MockMultipartFile.class))).willReturn(fakeImageUrl);
+
+        // when & then
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/api/users/me")
+                        .file(jsonRequest)
+                        .file(imageFile)
+                        .header("Authorization", userToken)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isOk())
                 .andDo(print());
+
+        // 수정된 프로필 정보를 다시 조회하여 검증
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("newNick"))
+                .andExpect(jsonPath("$.bio").value("My new bio"))
+                .andExpect(jsonPath("$.profileImageUrl").value(fakeImageUrl));
     }
 
-    @DisplayName("회원가입 실패 - 이메일 중복")
+    @DisplayName("PATCH /api/users/me - 닉네임 중복 시 400 Bad Request 응답")
     @Test
-    void signUp_Fail_EmailAlreadyExists() throws Exception {
+    void updateMyProfile_Fail_NicknameAlreadyExists() throws Exception {
         // given
-        SignUpRequest request = new SignUpRequest("test@test.com", "Password123!", "testuser");
-        willThrow(new EmailAlreadyExistsException()).given(userService).signUp(any(SignUpRequest.class));
+        userRepository.save(User.builder().email("other@test.com").password("pwd").nickname("newNick").role(UserRole.USER).build());
 
-        // when
-        ResultActions actions = mockMvc.perform(post("/api/auth/signup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
+        ProfileUpdateRequest requestDto = new ProfileUpdateRequest();
+        requestDto.setNickname("newNick");
 
-        // then
-        actions
+        MockMultipartFile jsonRequest = new MockMultipartFile(
+                "request", "", "application/json",
+                objectMapper.writeValueAsString(requestDto).getBytes(StandardCharsets.UTF_8)
+        );
+
+        // when & then
+        mockMvc.perform(multipart(HttpMethod.PATCH, "/api/users/me")
+                        .file(jsonRequest)
+                        .header("Authorization", userToken)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("U001"))
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 이메일입니다."))
-                .andDo(print());
-    }
-
-    @DisplayName("회원가입 실패 - 잘못된 입력값 (닉네임 형식 오류)")
-    @Test
-    void signUp_Fail_InvalidNicknameFormat() throws Exception {
-        // given
-        // 닉네임에 특수문자 포함
-        SignUpRequest request = new SignUpRequest("test@test.com", "Password123!", "testuser!");
-
-        // when
-        ResultActions actions = mockMvc.perform(post("/api/auth/signup")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
-
-        // then
-        actions
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("C001"))
-                .andExpect(jsonPath("$.message").value("닉네임은 2~10자의 영문, 숫자, 한글만 사용 가능합니다."))
+                .andExpect(jsonPath("$.code").value("U002"))
                 .andDo(print());
     }
 }
