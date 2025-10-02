@@ -4,6 +4,8 @@ import com.gridhub.gridhub.domain.f1data.entity.Driver;
 import com.gridhub.gridhub.domain.f1data.entity.Team;
 import com.gridhub.gridhub.domain.f1data.repository.DriverRepository;
 import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
+import com.gridhub.gridhub.domain.prediction.dto.PredictionHistoryDto;
+import com.gridhub.gridhub.domain.prediction.entity.Prediction;
 import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.domain.user.dto.PredictionStatsDto;
 import com.gridhub.gridhub.domain.user.dto.ProfileResponse;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,24 +39,31 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public ProfileResponse getMyProfile(String userEmail) {
+        // 1. 사용자 정보 조회
         User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
 
-        // 1. 예측 통계 정보 조회
+        // 2. 예측 통계 정보 조회
         long totalPredictions = predictionRepository.countByUser(user);
         long correctPredictions = predictionRepository.countByUserAndIsCorrectTrue(user);
 
-        // 2. 성공률 계산 (0으로 나누는 경우 방지)
+        // 3. 성공률 계산 (0으로 나누는 경우 방지)
         double winRate = (totalPredictions == 0) ? 0 : ((double) correctPredictions / totalPredictions);
 
-        // 3. 통계 DTO 생성
+        // 4. 통계 DTO 생성
         PredictionStatsDto stats = new PredictionStatsDto(
                 totalPredictions,
                 correctPredictions,
                 winRate
         );
 
-        // 4. 최종 응답 DTO 생성
-        return ProfileResponse.of(user, stats);
+        // 5. 최근 예측 기록 5건 조회 및 DTO 변환
+        List<Prediction> recentPredictionEntities = predictionRepository.findTop5ByUserOrderByCreatedAtDesc(user);
+        List<PredictionHistoryDto> recentPredictionDtos = recentPredictionEntities.stream()
+                .map(PredictionHistoryDto::from)
+                .collect(Collectors.toList());
+
+        // 6. 모든 정보를 취합하여 최종 응답 DTO 생성
+        return ProfileResponse.of(user, stats, recentPredictionDtos);
     }
 
     /**
