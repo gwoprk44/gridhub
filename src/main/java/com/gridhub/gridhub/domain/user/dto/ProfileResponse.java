@@ -3,6 +3,7 @@ package com.gridhub.gridhub.domain.user.dto;
 import com.gridhub.gridhub.domain.f1data.entity.Driver;
 import com.gridhub.gridhub.domain.f1data.entity.Team;
 import com.gridhub.gridhub.domain.user.entity.User;
+import com.gridhub.gridhub.domain.user.entity.UserTier;
 
 public record ProfileResponse(
         String email,
@@ -10,6 +11,7 @@ public record ProfileResponse(
         String bio,
         String profileImageUrl,
         int points,
+        String tier,
         FavoriteDriverDto favoriteDriver,
         FavoriteTeamDto favoriteTeam,
         PredictionStatsDto predictionStats
@@ -27,6 +29,7 @@ public record ProfileResponse(
                 user.getBio(),
                 user.getProfileImageUrl(),
                 user.getPoints(),
+                UserTier.getTierByPoints(user.getPoints()).getTierName(),
                 driver != null ? new FavoriteDriverDto(driver.getId(), driver.getFullName()) : null,
                 team != null ? new FavoriteTeamDto(team.getId(), team.getName(), team.getTeamColour()) : null,
                 stats
