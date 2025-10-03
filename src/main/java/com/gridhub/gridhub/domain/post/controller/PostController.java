@@ -77,15 +77,18 @@ public class PostController {
     }
 
     @PutMapping(value = "/{postId}", consumes = {MediaType.APPLICATION_JSON_VALUE, MediaType.MULTIPART_FORM_DATA_VALUE})
-    public ResponseEntity<Void> updatePost(
+    public ResponseEntity<PostResponse> updatePost(
             @PathVariable Long postId,
             @RequestPart("request") @Valid PostUpdateRequest request,
             @RequestPart(value = "image", required = false) MultipartFile newImage,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) throws IOException {
         String currentUserEmail = userDetails.getUsername();
-        postService.updatePost(postId, request, newImage, currentUserEmail);
-        return ResponseEntity.ok().build();
+        // 서비스 메서드의 반환값을 받음
+        PostResponse updatedPost = postService.updatePost(postId, request, newImage, currentUserEmail);
+
+        // 200 OK와 함께 수정된 게시글 정보를 응답 본문에 담아 반환
+        return ResponseEntity.ok(updatedPost);
     }
 
     @DeleteMapping("/{postId}")

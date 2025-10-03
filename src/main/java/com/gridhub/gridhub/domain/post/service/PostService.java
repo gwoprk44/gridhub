@@ -16,6 +16,10 @@ import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.infra.s3.S3UploaderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostService {
@@ -67,8 +72,10 @@ public class PostService {
     }
 
     // 조회수 증가 로직이 없는 순수 조회 메서드 (필요시 사용)
+    @Cacheable(value = "post", key = "#postId")
     @Transactional(readOnly = true)
     public PostResponse getPost(Long postId) {
+        log.info("--- Caching Disabled: Fetching post #{} from DB ---", postId);
         Post post = postRepository.findById(postId)
                 .orElseThrow(PostNotFoundException::new);
         return PostResponse.from(post);
@@ -117,16 +124,20 @@ public class PostService {
     /*
     * 게시글 수정
     * */
+    @CachePut(value = "post", key = "#postId") // DB 업데이트 후, 캐시도 이 메서드의 반환값으로 갱신
     @Transactional
-    public void updatePost(Long postId, PostUpdateRequest request, MultipartFile newImage, String userEmail) throws IOException {
+    public PostResponse updatePost(Long postId, PostUpdateRequest request, MultipartFile newImage, String userEmail) throws IOException {
+        // 1. 사용자 및 게시글 조회
         User currentUser = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
         Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
 
+        // 2. 수정 권한 검증
         if (!post.getAuthor().getId().equals(currentUser.getId())) {
             throw new PostUpdateForbiddenException();
         }
 
-        String newImageUrl = post.getImageUrl(); // 기본적으로 기존 이미지 유지
+        // 3. 이미지 파일 처리 (업로드 및 기존 파일 삭제)
+        String newImageUrl = post.getImageUrl(); // 기본적으로 기존 이미지 URL 유지
         if (newImage != null && !newImage.isEmpty()) {
             // 새 이미지가 있으면 기존 이미지 S3에서 삭제
             if (post.getImageUrl() != null) {
@@ -136,20 +147,26 @@ public class PostService {
             newImageUrl = s3UploaderService.upload(newImage);
         }
 
+        // 4. 게시글 엔티티 업데이트
         post.update(request.title(), request.content(), newImageUrl);
+
+        // 5. 변경 감지(Dirty Checking)에 의해 post가 DB에 업데이트된 후,
+        //    @CachePut 어노테이션이 이 반환값을 캐시에 저장.
+        return PostResponse.from(post);
     }
 
     /*
     * 게시글 삭제
     * */
+    @CacheEvict(value = "post", key = "#postId")
     @Transactional
     public void deletePost(Long postId, String userEmail) {
+        log.info("--- Deleting post #{} and evicting cache ---", postId);
         User currentUser = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
         Post post = postRepository.findById(postId).orElseThrow(PostNotFoundException::new);
 
         validatePostAuthorOrAdmin(post, currentUser);
 
-        // S3에 이미지가 있다면 삭제
         if (post.getImageUrl() != null) {
             s3UploaderService.delete(post.getImageUrl());
         }

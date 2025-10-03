@@ -13,6 +13,8 @@ import com.gridhub.gridhub.domain.f1data.repository.RaceRepository;
 import com.gridhub.gridhub.domain.f1data.repository.RaceResultRepository;
 import com.gridhub.gridhub.domain.f1data.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class F1DataService {
@@ -59,15 +62,19 @@ public class F1DataService {
         return RaceDetailResponse.of(race, result);
     }
 
+    @Cacheable(value = "drivers")
     @Transactional(readOnly = true)
     public List<DriverInfoResponse> getAllDrivers() {
+        log.info("--- Caching Disabled: Fetching drivers from DB ---"); // 캐시가 동작 안 할 때만 로그 출력
         return driverRepository.findAll().stream()
                 .map(DriverInfoResponse::from)
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "teams")
     @Transactional(readOnly = true)
     public List<TeamInfoResponse> getAllTeams() {
+        log.info("--- Caching Disabled: Fetching teams from DB ---"); // 캐시가 동작 안 할 때만 로그 출력
         return teamRepository.findAllWithDrivers().stream()
                 .map(TeamInfoResponse::from)
                 .collect(Collectors.toList());
