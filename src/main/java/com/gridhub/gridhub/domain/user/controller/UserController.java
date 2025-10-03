@@ -35,4 +35,16 @@ public class UserController {
         userService.updateMyProfile(userDetails.getUsername(), request, profileImage);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<ProfileResponse> getUserProfileById(@PathVariable Long userId) {
+        ProfileResponse profile = userService.getUserProfileById(userId);
+        return ResponseEntity.ok(profile);
+    }
+
+    @GetMapping("/by-nickname/{nickname}")
+    public ResponseEntity<ProfileResponse> getUserProfileByNickname(@PathVariable String nickname) {
+        ProfileResponse profile = userService.getUserProfileByNickname(nickname);
+        return ResponseEntity.ok(profile);
+    }
 }
