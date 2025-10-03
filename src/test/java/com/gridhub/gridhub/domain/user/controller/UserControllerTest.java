@@ -66,11 +66,14 @@ class UserControllerTest {
 
     private String userToken;
     private User testUser;
+    private User anotherUser;
 
     @BeforeEach
     void setUp() {
         testUser = User.builder().email("test@test.com").password("pwd").nickname("testuser").role(UserRole.USER).build();
         userRepository.saveAndFlush(testUser);
+        userToken = jwtUtil.createToken(testUser.getEmail(), testUser.getRole());
+        anotherUser = userRepository.save(User.builder().email("another@test.com").password("pwd").nickname("anotherUser").role(UserRole.USER).build());
         userToken = jwtUtil.createToken(testUser.getEmail(), testUser.getRole());
     }
 
@@ -208,5 +211,36 @@ class UserControllerTest {
                 .countryName("Testland")
                 .circuitShortName("TST")
                 .build();
+    }
+    
+    @DisplayName("GET /api/users/{userId} - ID로 다른 사용자 프로필 조회 성공")
+    @Test
+    void getUserProfileById_Success() throws Exception {
+        mockMvc.perform(get("/api/users/" + anotherUser.getId())) // anotherUser의 ID로 조회
+                // 이 API는 비로그인 상태에서도 조회가 가능해야 하므로 header(Authorization)가 없어도 성공해야 함
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("anotherUser"))
+                .andExpect(jsonPath("$.email").value("another@test.com"))
+                .andDo(print());
+    }
+
+    @DisplayName("GET /api/users/by-nickname/{nickname} - 닉네임으로 다른 사용자 프로필 조회 성공")
+    @Test
+    void getUserProfileByNickname_Success() throws Exception {
+        mockMvc.perform(get("/api/users/by-nickname/" + anotherUser.getNickname())) // anotherUser의 닉네임으로 조회
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("anotherUser"))
+                .andDo(print());
+    }
+
+    @DisplayName("GET /api/users/{userId} - 존재하지 않는 ID로 프로필 조회 시 404 Not Found 응답")
+    @Test
+    void getUserProfileById_Fail_UserNotFound() throws Exception {
+        long nonExistentUserId = 9999L;
+
+        mockMvc.perform(get("/api/users/" + nonExistentUserId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("U004")) // UserNotFoundException에 해당하는 에러 코드
+                .andDo(print());
     }
 }

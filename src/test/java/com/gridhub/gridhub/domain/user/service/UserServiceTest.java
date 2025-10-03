@@ -10,6 +10,7 @@ import com.gridhub.gridhub.domain.user.dto.ProfileUpdateRequest;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.exception.NicknameAlreadyExistsException;
+import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import com.gridhub.gridhub.infra.s3.S3UploaderService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -210,5 +212,53 @@ class UserServiceTest {
         assertThat(profile.recentPredictions()).hasSize(2);
         assertThat(profile.recentPredictions().get(0).raceId()).isEqualTo(101L);
         assertThat(profile.recentPredictions().get(0).raceName()).isEqualTo("Test GP");
+    }
+
+    @DisplayName("사용자 ID로 프로필 조회 성공")
+    @Test
+    void getUserProfileById_Success() {
+        // given
+        Long userId = 1L;
+        given(userRepository.findById(userId)).willReturn(Optional.of(testUser));
+        // 통계/예측 기록은 0으로 가정
+        given(predictionRepository.countByUser(testUser)).willReturn(0L);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(0L);
+        given(predictionRepository.findTop5ByUserOrderByCreatedAtDesc(testUser)).willReturn(Collections.emptyList());
+
+        // when
+        ProfileResponse profile = userService.getUserProfileById(userId);
+
+        // then
+        verify(userRepository).findById(userId);
+        assertThat(profile.nickname()).isEqualTo("testuser");
+    }
+
+    @DisplayName("사용자 ID로 프로필 조회 실패 - 존재하지 않는 사용자")
+    @Test
+    void getUserProfileById_Fail_UserNotFound() {
+        // given
+        Long nonExistentUserId = 99L;
+        given(userRepository.findById(nonExistentUserId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThrows(UserNotFoundException.class, () -> userService.getUserProfileById(nonExistentUserId));
+    }
+
+    @DisplayName("닉네임으로 프로필 조회 성공")
+    @Test
+    void getUserProfileByNickname_Success() {
+        // given
+        String nickname = "testuser";
+        given(userRepository.findByNickname(nickname)).willReturn(Optional.of(testUser));
+        given(predictionRepository.countByUser(testUser)).willReturn(0L);
+        given(predictionRepository.countByUserAndIsCorrectTrue(testUser)).willReturn(0L);
+        given(predictionRepository.findTop5ByUserOrderByCreatedAtDesc(testUser)).willReturn(Collections.emptyList());
+
+        // when
+        ProfileResponse profile = userService.getUserProfileByNickname(nickname);
+
+        // then
+        verify(userRepository).findByNickname(nickname);
+        assertThat(profile.nickname()).isEqualTo("testuser");
     }
 }
