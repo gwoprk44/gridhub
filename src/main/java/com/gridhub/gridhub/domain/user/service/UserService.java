@@ -39,31 +39,8 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public ProfileResponse getMyProfile(String userEmail) {
-        // 1. 사용자 정보 조회
         User user = userRepository.findByEmail(userEmail).orElseThrow(UserNotFoundException::new);
-
-        // 2. 예측 통계 정보 조회
-        long totalPredictions = predictionRepository.countByUser(user);
-        long correctPredictions = predictionRepository.countByUserAndIsCorrectTrue(user);
-
-        // 3. 성공률 계산 (0으로 나누는 경우 방지)
-        double winRate = (totalPredictions == 0) ? 0 : ((double) correctPredictions / totalPredictions);
-
-        // 4. 통계 DTO 생성
-        PredictionStatsDto stats = new PredictionStatsDto(
-                totalPredictions,
-                correctPredictions,
-                winRate
-        );
-
-        // 5. 최근 예측 기록 5건 조회 및 DTO 변환
-        List<Prediction> recentPredictionEntities = predictionRepository.findTop5ByUserOrderByCreatedAtDesc(user);
-        List<PredictionHistoryDto> recentPredictionDtos = recentPredictionEntities.stream()
-                .map(PredictionHistoryDto::from)
-                .collect(Collectors.toList());
-
-        // 6. 모든 정보를 취합하여 최종 응답 DTO 생성
-        return ProfileResponse.of(user, stats, recentPredictionDtos);
+        return createProfileResponse(user);
     }
 
     /**
@@ -104,5 +81,49 @@ public class UserService {
                 favoriteDriver,
                 favoriteTeam
         );
+    }
+
+    /**
+     * 사용자 ID로 특정 사용자의 프로필을 조회.
+     * @param userId 조회할 사용자의 ID
+     * @return 조회된 사용자의 프로필 정보
+     */
+    @Transactional(readOnly = true)
+    public ProfileResponse getUserProfileById(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
+        return createProfileResponse(user);
+    }
+
+    /**
+     * 닉네임으로 특정 사용자의 프로필을 조회.
+     * @param nickname 조회할 사용자의 닉네임
+     * @return 조회된 사용자의 프로필 정보
+     */
+    @Transactional(readOnly = true)
+    public ProfileResponse getUserProfileByNickname(String nickname) {
+        User user = userRepository.findByNickname(nickname).orElseThrow(UserNotFoundException::new);
+        return createProfileResponse(user);
+    }
+
+    /**
+     * 프로필 응답 DTO를 생성하는 중복 로직을 추출한 private 헬퍼 메서드
+     * @param user 프로필을 생성할 User 엔티티
+     * @return 생성된 ProfileResponse DTO
+     */
+    private ProfileResponse createProfileResponse(User user) {
+        // 1. 예측 통계 정보 조회
+        long totalPredictions = predictionRepository.countByUser(user);
+        long correctPredictions = predictionRepository.countByUserAndIsCorrectTrue(user);
+        double winRate = (totalPredictions == 0) ? 0 : ((double) correctPredictions / totalPredictions);
+        PredictionStatsDto stats = new PredictionStatsDto(totalPredictions, correctPredictions, winRate);
+
+        // 2. 최근 예측 기록 조회
+        List<Prediction> recentPredictionEntities = predictionRepository.findTop5ByUserOrderByCreatedAtDesc(user);
+        List<PredictionHistoryDto> recentPredictionDtos = recentPredictionEntities.stream()
+                .map(PredictionHistoryDto::from)
+                .toList();
+
+        // 3. 최종 응답 DTO 생성
+        return ProfileResponse.of(user, stats, recentPredictionDtos);
     }
 }
