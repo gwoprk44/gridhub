@@ -2,10 +2,12 @@ package com.gridhub.gridhub.domain.post.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gridhub.gridhub.domain.post.dto.PostRequestDto;
+import com.gridhub.gridhub.domain.post.dto.PostResponse;
 import com.gridhub.gridhub.domain.post.dto.PostUpdateRequest;
 import com.gridhub.gridhub.domain.post.entity.Post;
 import com.gridhub.gridhub.domain.post.entity.PostCategory;
 import com.gridhub.gridhub.domain.post.repository.PostRepository;
+import com.gridhub.gridhub.domain.post.service.PostService;
 import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.entity.UserRole;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
@@ -19,9 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -42,16 +46,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
 public class PostControllerTest {
 
-    @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
-    @Autowired private UserRepository userRepository;
-    @Autowired private PostRepository postRepository;
-    @Autowired private JwtUtil jwtUtil;
-    @Autowired private EntityManager em; // DB와의 동기화를 위해 EntityManager 주입
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private PostRepository postRepository;
+    @Autowired
+    private JwtUtil jwtUtil;
+    @Autowired
+    private EntityManager em;
+    @Autowired
+    private CacheManager cacheManager;
+    @Autowired
+    private PostService postService;
 
     @MockitoBean
     private S3UploaderService s3UploaderService;
@@ -126,7 +141,8 @@ public class PostControllerTest {
         // s3UploaderService.delete가 '기존' 이미지 URL로 호출되었는지 검증
         verify(s3UploaderService).delete(testPost.getImageUrl());
 
-        em.flush(); em.clear(); // DB와 영속성 컨텍스트 동기화
+        em.flush();
+        em.clear(); // DB와 영속성 컨텍스트 동기화
         Post updatedPost = postRepository.findById(testPost.getId()).orElseThrow();
         assertThat(updatedPost.getImageUrl()).isEqualTo(newImageUrl);
     }
@@ -221,5 +237,45 @@ public class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].title").value("Rumor about Spring"));
+    }
+
+    @DisplayName("게시글 수정 시 캐시가 갱신된다 - 통합 테스트")
+    @Test
+    void updatePost_ShouldUpdateCache() throws Exception {
+        // given
+        // 1. Service를 직접 호출하여 캐시 저장
+        postService.getPost(testPost.getId());
+
+        // 캐시에서 값을 LinkedHashMap으로 가져온 뒤, ObjectMapper를 사용해 PostResponse로 변환
+        Object cachedValueBefore = cacheManager.getCache("post").get(testPost.getId()).get();
+        PostResponse cachedBefore = objectMapper.convertValue(cachedValueBefore, PostResponse.class);
+
+        assertThat(cachedBefore).isNotNull();
+        assertThat(cachedBefore.title()).isEqualTo("JPA Basics");
+
+        // 2. 수정 요청 준비
+        PostUpdateRequest updateRequest = new PostUpdateRequest("Updated Title by Test", "Updated Content");
+        MockMultipartFile jsonRequest = new MockMultipartFile("request", "", "application/json",
+                objectMapper.writeValueAsBytes(updateRequest));
+
+        // when
+        // 3. 수정 API 호출
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/posts/" + testPost.getId())
+                        .file(jsonRequest)
+                        .header("Authorization", authorToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated Title by Test"));
+
+        // then
+        // 4. 캐시 갱신 확인
+        Object cachedValueAfter = cacheManager.getCache("post").get(testPost.getId()).get();
+        PostResponse cachedAfter = objectMapper.convertValue(cachedValueAfter, PostResponse.class);
+
+        assertThat(cachedAfter).isNotNull();
+        assertThat(cachedAfter.title()).isEqualTo("Updated Title by Test");
+
+        // 5. DB 변경 확인
+        Post updatedPostInDb = postRepository.findById(testPost.getId()).orElseThrow();
+        assertThat(updatedPostInDb.getTitle()).isEqualTo("Updated Title by Test");
     }
 }

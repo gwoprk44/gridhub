@@ -162,6 +162,28 @@ class PostServiceTest {
         assertThat(post.getImageUrl()).isEqualTo(newImageUrl);
     }
 
+    @DisplayName("게시글 수정 성공 시, 수정된 내용의 DTO를 반환한다")
+    @Test
+    void updatePost_Success_AndReturnsUpdatedDto() throws IOException {
+        // given
+        PostUpdateRequest request = new PostUpdateRequest("updated title", "updated content");
+
+        given(userRepository.findByEmail(author.getEmail())).willReturn(Optional.of(author));
+        given(postRepository.findById(post.getId())).willReturn(Optional.of(post));
+
+        // when
+        PostResponse updatedPostResponse = postService.updatePost(post.getId(), request, null, author.getEmail());
+
+        // then
+        // 1. 엔티티의 상태가 실제로 변경되었는지 확인
+        assertThat(post.getTitle()).isEqualTo("updated title");
+        assertThat(post.getContent()).isEqualTo("updated content");
+
+        // 2. 반환된 DTO가 변경된 상태를 정확히 반영하는지 확인
+        assertThat(updatedPostResponse.title()).isEqualTo("updated title");
+        assertThat(updatedPostResponse.content()).isEqualTo("updated content");
+    }
+
     // --- 삭제 테스트 ---
 
     @DisplayName("게시글 삭제 성공 (이미지 없음)")
