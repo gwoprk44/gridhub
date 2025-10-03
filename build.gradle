@@ -44,6 +44,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.25.8') // AWS SDK BOM(Bill of Materials)
     implementation 'software.amazon.awssdk:s3'
 
+    // Redis 및 Caching 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
