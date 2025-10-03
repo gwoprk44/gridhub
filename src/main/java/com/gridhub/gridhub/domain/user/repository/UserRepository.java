@@ -21,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // points를 기준으로 내림차순 정렬하여 페이징 조회
     Page<User> findAllByOrderByPointsDesc(Pageable pageable);
+
+    // 닉네임으로 사용자를 찾는 메서드(다른 사용자 프로필 조회시 사용)
+    Optional<User> findByNickname(String nickname);
 }
