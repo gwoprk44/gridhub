@@ -212,7 +212,7 @@ class UserControllerTest {
                 .circuitShortName("TST")
                 .build();
     }
-    
+
     @DisplayName("GET /api/users/{userId} - ID로 다른 사용자 프로필 조회 성공")
     @Test
     void getUserProfileById_Success() throws Exception {
