@@ -18,6 +18,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,8 +33,10 @@ public class F1DataService {
     private final DriverRepository driverRepository;
     private final TeamRepository teamRepository;
 
+    @Cacheable(value = "raceCalendar", key = "#year")
     @Transactional(readOnly = true)
     public List<RaceCalendarDto> getRaceCalendarByYear(int year) {
+        log.info("--- Caching Disabled: Fetching race calendar for year {} from DB ---", year); // 캐시 미적용 시 로그
         // 1. 해당연도의 모든 레이스 데이터를 DB에서 조회
         List<Race> allRacesForYear =
                 raceRepository.findByYearOrderByDateStartAsc(year);
@@ -45,11 +48,14 @@ public class F1DataService {
         // 3. 그룹화한 데이터를 레이스캘린더 dto로 변환
         return racesGroupedByMeeting.values().stream()
                 .map(RaceCalendarDto::from)
+                .sorted(Comparator.comparing(dto -> dto.sessions().get(0).dateStart()))
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "raceDetail", key = "#raceId")
     @Transactional(readOnly = true)
     public RaceDetailResponse getRaceDetail(Long raceId) {
+        log.info("--- Caching Disabled: Fetching race detail for race #{} from DB ---", raceId); // 캐시 미적용 시 로그
         // 1. raceId로 레이스 엔티티 조회(존재하지 않으면 예외 던짐)
         Race race = raceRepository.findById(raceId)
                 .orElseThrow(RaceNotFoundException::new);

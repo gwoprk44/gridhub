@@ -9,6 +9,7 @@ import com.gridhub.gridhub.domain.f1data.repository.*;
 import com.gridhub.gridhub.infra.external.OpenF1Client;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +41,12 @@ public class F1DataSyncService {
      */
     @Scheduled(cron = "0 0 5 * * *")
     @Transactional
+    @CacheEvict(
+            value = {"drivers", "teams", "raceCalendar", "raceDetail"}, // 비워낼 캐시 영역 이름들
+            allEntries = true // 해당 캐시 영역의 모든 데이터를 삭제
+    )
     public void synchronizeF1Data() {
+        log.info("Clearing F1 data caches..."); // 캐시 삭제 로그
         log.info("F1 데이터 동기화 스케줄을 시작합니다.");
         int currentYear = Year.now().getValue();
 

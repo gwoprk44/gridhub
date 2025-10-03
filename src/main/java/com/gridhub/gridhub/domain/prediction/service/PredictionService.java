@@ -18,6 +18,8 @@ import com.gridhub.gridhub.domain.user.entity.User;
 import com.gridhub.gridhub.domain.user.exception.UserNotFoundException;
 import com.gridhub.gridhub.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PredictionService {
@@ -86,8 +89,11 @@ public class PredictionService {
                 .orElse(null); // 예측이 없으면 null 반환 (Controller에서 404 처리)
     }
 
+    @Cacheable(value = "leaderboard", key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<LeaderboardResponse> getLeaderboard(Pageable pageable) {
+        log.info("--- Caching Disabled: Fetching leaderboard from DB (page: {}, size: {}) ---", pageable.getPageNumber(), pageable.getPageSize());
+
         // 1. UserRepository를 통해 포인트를 기준으로 정렬된 사용자 목록을 페이징하여 조회
         Page<User> userPage = userRepository.findAllByOrderByPointsDesc(pageable);
 

@@ -8,6 +8,7 @@ import com.gridhub.gridhub.domain.prediction.repository.PredictionRepository;
 import com.gridhub.gridhub.infra.external.OpenF1Client;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class PredictionScoringService {
     // 매 시간 10분에 실행 (e.g., 01:10, 02:10...)
     @Scheduled(cron = "0 10 * * * *")
     @Transactional
+    @CacheEvict(value = "leaderboard", allEntries = true) // <<< leaderboard 캐시 전체 삭제
     public void scorePredictionsForFinishedRaces() {
         log.info("예측 채점 스케줄을 시작합니다.");
 
